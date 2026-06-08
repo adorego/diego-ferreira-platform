@@ -1,13 +1,11 @@
-import { PrismaClient } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
+import { PrismaClient } from '../generated/prisma'
 import bcrypt from 'bcrypt'
 import dotenv from 'dotenv'
 import path from 'path'
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') })
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
-const prisma = new PrismaClient({ adapter } as any)
+const prisma = new PrismaClient()
 
 async function main() {
   const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD ?? 'Admin.123', 12)

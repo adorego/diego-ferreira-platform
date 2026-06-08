@@ -1,6 +1,7 @@
-node_modules/ 
-.env 
-.env.local 
-.turbo/ 
-dist/ 
+node_modules/
+.env
+.env.local
+.turbo/
+dist/
 .next/
+apps/api/generated/
