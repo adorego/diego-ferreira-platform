@@ -1,0 +1,10 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://www.diegoferreira.org
+
+# Sitemaps
+Sitemap: https://www.diegoferreira.org/sitemap.xml
+Sitemap: https://www.diegoferreira.org/server-sitemap.xml

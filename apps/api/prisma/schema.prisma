@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role      @default(PATIENT)
+  status       UserStatus @default(PROSPECT)
+  country      String?
+  gcalToken    String?
+  sessions     Session[]
+  payments     Payment[]
+  createdAt    DateTime  @default(now())
+}
+
+model Session {
+  id           Int        @id @default(autoincrement())
+  patientId    Int
+  patient      User       @relation(fields:[patientId], references:[id])
+  type         SessionType
+  status       AppStatus  @default(PENDING)
+  start        DateTime?
+  end          DateTime?
+  roomUrl      String?
+  gcalEventId  String?
+  recordingUrl String?
+  reminderSent Boolean    @default(false)
+  price        Float?
+  paymentId    String?
+  payment      Payment?   @relation(fields:[paymentId], references:[id])
+  summary      SessionSummary?
+  createdAt    DateTime   @default(now())
+}
+
+model SessionSummary {
+  id          String   @id @default(cuid())
+  sessionId   Int      @unique
+  session     Session  @relation(fields:[sessionId], references:[id])
+  transcript  String   @db.Text
+  summary     String   @db.Text
+  createdAt   DateTime @default(now())
+}
+
+model Payment {
+  id               String    @id @default(cuid())
+  patientId        Int
+  patient          User      @relation(fields:[patientId], references:[id])
+  amount           Float
+  currency         String
+  status           PayStatus @default(PENDING)
+  bancardProcessId String?   @unique
+  authNumber       String?
+  sessions         Session[]
+  createdAt        DateTime  @default(now())
+}
+
+enum Role {
+  PATIENT
+  ADMIN
+}
+
+enum UserStatus {
+  PROSPECT
+  APPROVED
+  ACTIVE
+  INACTIVE
+}
+
+enum SessionType {
+  EXPLORATORY
+  PLAN
+}
+
+enum AppStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PayStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}

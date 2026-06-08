@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & TypeCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm turbo lint
+        continue-on-error: true
+
+      - run: pnpm turbo typecheck
+        continue-on-error: true
+
+  test:
+    name: Tests
+    needs: lint-and-typecheck
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: df
+          POSTGRES_PASSWORD: df_dev
+          POSTGRES_DB: df_platform_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL:        postgresql://df:df_dev@localhost:5432/df_platform_test
+      REDIS_URL:           redis://localhost:6379
+      JWT_SECRET:          test_secret_ci_only_not_for_production
+      RESEND_API_KEY:      re_test_placeholder
+      DIEGO_EMAIL:         test@test.com
+      FRONTEND_URL:        http://localhost:3000
+      ADMIN_URL:           http://localhost:3001
+      BANCARD_BASE_URL:    https://vpos.infonet.com.py
+      BANCARD_PUBLIC_KEY:  pub_key_test
+      BANCARD_PRIVATE_KEY: priv_key_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @df/api db:generate
+
+      - name: Apply migrations
+        run: pnpm exec prisma migrate deploy
+        working-directory: apps/api
+
+      - name: Run all tests
+        run: pnpm turbo test
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: apps/api/coverage/
+          if-no-files-found: ignore
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm turbo build

@@ -1,0 +1,18 @@
+{
+  "name": "diego-ferreira-platform",
+  "private": true,
+  "packageManager": "pnpm@9.1.0",
+  "scripts": {
+    "dev":        "turbo dev",
+    "build":      "turbo build",
+    "lint":       "turbo lint",
+    "typecheck":  "turbo typecheck",
+    "db:migrate": "pnpm --filter @df/api prisma migrate dev",
+    "db:studio":  "pnpm --filter @df/api prisma studio",
+    "db:generate":"pnpm --filter @df/api prisma generate"
+  },
+  "devDependencies": {
+    "turbo":      "^2.0.0",
+    "typescript": "^5.4.0"
+  }
+}

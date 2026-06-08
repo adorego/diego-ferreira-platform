@@ -1,0 +1,13 @@
+{
+  "build": {
+    "builder": "nixpacks",
+    "buildCommand": "pnpm install && pnpm db:generate && pnpm build"
+  },
+  "deploy": {
+    "startCommand": "pnpm start:prod",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "on-failure",
+    "restartPolicyMaxRetries": 3
+  }
+}
