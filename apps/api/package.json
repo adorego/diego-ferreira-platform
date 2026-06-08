@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "prebuild": "prisma generate",
-    "build": "nest build",
+    "build": "nest build && cp -r generated dist/",
     "start:clean": "fuser -k 4000/tcp 2>/dev/null; nest start --watch",
     "prisma": "prisma",
     "db:migrate": "prisma migrate dev",
@@ -16,7 +16,7 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "node dist/src/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
