@@ -6,6 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "prebuild": "prisma generate",
     "build": "nest build",
     "start:clean": "fuser -k 4000/tcp 2>/dev/null; nest start --watch",
     "prisma": "prisma",

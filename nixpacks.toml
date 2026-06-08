@@ -5,7 +5,7 @@ nixPkgs = ["nodejs_20"]
 cmds = ["npm install -g pnpm@9", "pnpm install --frozen-lockfile"]
 
 [phases.build]
-cmds = ["pnpm turbo build --filter=@df/api..."]
+cmds = ["pnpm --filter @df/api db:generate", "pnpm turbo build --filter=@df/api..."]
 
 [start]
 cmd = "cd apps/api && node dist/src/main"
