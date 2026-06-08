@@ -1,11 +1,14 @@
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_20", "nodePackages.pnpm"]
 
 [phases.install]
-cmds = ["corepack enable", "pnpm install --frozen-lockfile"]
+cmds = [
+  "corepack disable",
+  "pnpm install --frozen-lockfile"
+]
 
 [phases.build]
-cmds = ["pnpm --filter @df/api db:generate", "pnpm turbo build --filter=@df/api..."]
+cmds = ["pnpm --filter @df/api db:generate && pnpm --filter @df/api build"]
 
 [start]
 cmd = "cd apps/api && node dist/src/main"
