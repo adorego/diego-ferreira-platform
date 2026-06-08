@@ -3,11 +3,11 @@ nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = [
-  "npm install -g pnpm@9 --force && pnpm install --frozen-lockfile"
+  "npx pnpm@9 install --frozen-lockfile"
 ]
 
 [phases.build]
-cmds = ["npm install -g pnpm@9 --force && pnpm --filter @df/web build"]
+cmds = ["npx pnpm@9 --filter @df/web build"]
 
 [start]
-cmd = "npm install -g pnpm@9 --force && cd apps/web && pnpm start"
+cmd = "cd apps/web && npx pnpm@9 start"
