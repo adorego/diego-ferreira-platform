@@ -1,10 +1,10 @@
 {
   "build": {
     "builder": "nixpacks",
-    "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @df/web build"
+    "buildCommand": "npx pnpm@9 install --frozen-lockfile && npx pnpm@9 --filter @df/web build"
   },
   "deploy": {
-    "startCommand": "cd apps/web && pnpm start",
+    "startCommand": "cd apps/web && npx pnpm@9 start",
     "healthcheckPath": "/",
     "healthcheckTimeout": 30
   }
