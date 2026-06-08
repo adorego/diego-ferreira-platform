@@ -1,10 +1,10 @@
 {
   "build": {
     "builder": "nixpacks",
-    "buildCommand": "pnpm install && pnpm build"
+    "buildCommand": "npx pnpm@9 install --frozen-lockfile && npx pnpm@9 --filter @df/admin build"
   },
   "deploy": {
-    "startCommand": "pnpm start -p 3001",
+    "startCommand": "cd apps/admin && npx pnpm@9 start",
     "healthcheckPath": "/",
     "healthcheckTimeout": 30
   }
