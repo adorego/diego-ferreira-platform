@@ -8,4 +8,4 @@ cmds = ["npm install -g pnpm@9", "pnpm install --frozen-lockfile"]
 cmds = ["pnpm turbo build --filter=@df/api..."]
 
 [start]
-cmd = "cd apps/api && node dist/main"
+cmd = "cd apps/api && node dist/src/main"

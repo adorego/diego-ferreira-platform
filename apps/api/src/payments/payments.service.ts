@@ -13,14 +13,13 @@ export class PaymentsService {
   ) {}
 
   async createPaymentLink(patientId: number, amount: number, currency: string) {
-    const shopProcessId = `DF-${Date.now()}-${patientId}`;
+    const shopProcessId = Date.now() % 999999999999999;
     const amountStr     = amount.toFixed(2);
 
-    // Hash MD5 requerido por Bancard
     const token = crypto.createHash('md5')
       .update(
         this.cfg.get('BANCARD_PRIVATE_KEY') +
-        shopProcessId + amountStr + currency,
+        shopProcessId.toString() + amountStr + currency,
       )
       .digest('hex');
 
@@ -31,7 +30,8 @@ export class PaymentsService {
         shop_process_id: shopProcessId,
         amount:          amountStr,
         currency,
-        description:     'Sesiones de Coaching Diego Ferreira',
+        description:     'Sesiones de Coaching',
+        additional_data: '',
         return_url:
           `${this.cfg.get('FRONTEND_URL')}/pago/confirmacion`,
         cancel_url:
@@ -49,10 +49,10 @@ export class PaymentsService {
       throw new BadRequestException(data.messages?.[0]?.dsc);
 
     await this.prisma.payment.create({
-      data: { patientId, amount, currency, bancardProcessId: shopProcessId },
+      data: { patientId, amount, currency, bancardProcessId: shopProcessId.toString() },
     });
 
-    return { processId: shopProcessId };
+    return { processId: shopProcessId.toString() };
   }
 
   // Webhook POST /payments/webhook — llamado por Bancard

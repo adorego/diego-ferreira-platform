@@ -1,10 +1,10 @@
 {
   "build": {
     "builder": "nixpacks",
-    "buildCommand": "pnpm install && pnpm db:generate && pnpm build"
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm db:generate && pnpm build"
   },
   "deploy": {
-    "startCommand": "pnpm start:prod",
+    "startCommand": "node dist/src/main",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30,
     "restartPolicyType": "on-failure",
