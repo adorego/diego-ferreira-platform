@@ -4,9 +4,9 @@
     "buildCommand": "npx pnpm@9 install --frozen-lockfile && npx pnpm@9 --filter @df/api db:generate && npx pnpm@9 --filter @df/api build"
   },
   "deploy": {
-    "startCommand": "cd apps/api && node dist/src/main",
+    "startCommand": "cd apps/api && npx prisma migrate deploy && node dist/src/main",
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 30,
+    "healthcheckTimeout": 60,
     "restartPolicyType": "on-failure",
     "restartPolicyMaxRetries": 3
   }
