@@ -1,0 +1,13 @@
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = [
+  "npx pnpm@9 install --frozen-lockfile"
+]
+
+[phases.build]
+cmds = ["npx pnpm@9 --filter @df/admin build"]
+
+[start]
+cmd = "cd apps/admin && npx pnpm@9 start"
