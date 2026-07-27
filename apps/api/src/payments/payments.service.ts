@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService }  from '../email/email.service';
@@ -6,6 +10,8 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     private cfg:    ConfigService,
     private prisma: PrismaService,
@@ -30,42 +36,103 @@ export class PaymentsService {
         shop_process_id: shopProcessId,
         amount:          amountStr,
         currency,
+        iva_amount:      '0.00',
         description:     'Sesiones de Coaching',
         additional_data: '',
-        return_url:
-          `${this.cfg.get('FRONTEND_URL')}/pago/confirmacion`,
-        cancel_url:
-          `${this.cfg.get('FRONTEND_URL')}/pago/cancelado`,
+        return_url:  `${this.cfg.get('FRONTEND_URL')}/pago/confirmacion`,
+        cancel_url:  `${this.cfg.get('FRONTEND_URL')}/pago/cancelado`,
       },
     };
 
     const res = await fetch(
       `${this.cfg.get('BANCARD_BASE_URL')}/vpos/api/0.3/single_buy`,
-      { method:'POST', headers:{'Content-Type':'application/json'},
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body) },
     );
     const data = await res.json();
     if (data.status !== 'success')
-      throw new BadRequestException(data.messages?.[0]?.dsc);
+      throw new BadRequestException(data.messages?.[0]?.dsc ?? 'Error Bancard');
 
     await this.prisma.payment.create({
-      data: { patientId, amount, currency, bancardProcessId: shopProcessId.toString() },
+      data: {
+        patientId,
+        amount,
+        currency,
+        bancardProcessId: shopProcessId.toString(),
+      },
     });
 
     return { processId: shopProcessId.toString() };
   }
 
-  // Webhook POST /payments/webhook — llamado por Bancard
   async handleWebhook(payload: any) {
-    const { shop_process_id, response, authorization_number } =
-      payload.operation ?? {};
+    const op = payload?.operation;
 
-    if (response !== 'S') return { ok: false };
+    if (!op?.shop_process_id) {
+      this.logger.warn('Webhook recibido sin shop_process_id');
+      return { status: 'success' };
+    }
 
-    const payment = await this.prisma.payment.update({
-      where: { bancardProcessId: shop_process_id },
-      data:  { status: 'CONFIRMED', authNumber: authorization_number },
+    // 1. VERIFICAR FIRMA MD5
+    // md5(private_key + shop_process_id + "confirm" + amount + currency)
+    const privateKey = this.cfg.get<string>('BANCARD_PRIVATE_KEY');
+    if (privateKey) {
+      const amountStr = parseFloat(op.amount ?? '0').toFixed(2);
+      const expectedToken = crypto
+        .createHash('md5')
+        .update(
+          privateKey +
+          op.shop_process_id +
+          'confirm' +
+          amountStr +
+          (op.currency ?? 'PYG'),
+        )
+        .digest('hex');
+
+      if (op.token !== expectedToken) {
+        this.logger.error(
+          `Webhook con firma inválida — shop_process_id: ${op.shop_process_id}`,
+        );
+        return { status: 'success' };
+      }
+    }
+
+    // 2. VERIFICAR QUE EL PAGO EXISTE Y ESTÁ PENDIENTE
+    const payment = await this.prisma.payment.findUnique({
+      where: { bancardProcessId: op.shop_process_id },
       include: { patient: true },
+    });
+
+    if (!payment) {
+      this.logger.warn(
+        `Webhook para pago inexistente: ${op.shop_process_id}`,
+      );
+      return { status: 'success' };
+    }
+
+    if (payment.status === 'CONFIRMED') {
+      this.logger.warn(
+        `Webhook duplicado para pago ya confirmado: ${op.shop_process_id}`,
+      );
+      return { status: 'success' };
+    }
+
+    // 3. PAGO RECHAZADO
+    if (op.response !== 'S') {
+      this.logger.log(
+        `Pago rechazado — shop_process_id: ${op.shop_process_id} | código: ${op.response_code}`,
+      );
+      await this.prisma.payment.update({
+        where: { bancardProcessId: op.shop_process_id },
+        data:  { status: 'FAILED' },
+      });
+      return { status: 'success' };
+    }
+
+    // 4. PAGO APROBADO — ACTIVAR PACIENTE
+    await this.prisma.payment.update({
+      where: { bancardProcessId: op.shop_process_id },
+      data:  { status: 'CONFIRMED', authNumber: op.authorization_number },
     });
 
     await this.prisma.user.update({
@@ -73,12 +140,16 @@ export class PaymentsService {
       data:  { status: 'ACTIVE' },
     });
 
+    this.logger.log(
+      `Pago confirmado — patientId: ${payment.patientId} | auth: ${op.authorization_number}`,
+    );
+
     await this.email.sendWelcomeAfterPayment({
       to:          payment.patient.email,
       name:        payment.patient.name,
       calendarUrl: `${this.cfg.get('FRONTEND_URL')}/registrados`,
     });
 
-    return { ok: true };
+    return { status: 'success' };
   }
 }
