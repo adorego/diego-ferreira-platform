@@ -11,7 +11,7 @@ describe('PaymentsService', () => {
     payment: { create: jest.Mock; update: jest.Mock; findUnique: jest.Mock };
     user:    { update: jest.Mock };
   };
-  let emailMock: { sendWelcomeAfterPayment: jest.Mock };
+  let emailMock: { sendWelcomeAfterPayment: jest.Mock; sendBookPurchaseConfirmation: jest.Mock };
   let fetchMock: jest.Mock;
 
   const cfgValues: Record<string, string> = {
@@ -39,7 +39,10 @@ describe('PaymentsService', () => {
       payment: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
       user:    { update: jest.fn() },
     };
-    emailMock = { sendWelcomeAfterPayment: jest.fn().mockResolvedValue(undefined) };
+    emailMock = {
+      sendWelcomeAfterPayment: jest.fn().mockResolvedValue(undefined),
+      sendBookPurchaseConfirmation: jest.fn().mockResolvedValue(undefined),
+    };
     fetchMock = jest.fn();
     global.fetch = fetchMock;
 
@@ -73,6 +76,25 @@ describe('PaymentsService', () => {
       const body = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(body.operation.token).toMatch(/^[a-f0-9]{32}$/);
       expect(body.operation.iva_amount).toBe('0.00');
+      expect(result.processId).toBeDefined();
+    });
+  });
+
+  describe('createBookPaymentLink()', () => {
+    it('genera hash MD5, marca additional_data con el email y llama fetch a Bancard API', async () => {
+      fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success' }) });
+
+      const result = await service.createBookPaymentLink('lector@test.com', 150000, 'PYG');
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/single_buy'),
+        expect.objectContaining({ method: 'POST' }),
+      );
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.operation.token).toMatch(/^[a-f0-9]{32}$/);
+      expect(body.operation.additional_data).toBe('LIBRO:lector@test.com');
+      expect(body.operation.description).toContain('Libro');
+      expect(prismaMock.payment.create).not.toHaveBeenCalled();
       expect(result.processId).toBeDefined();
     });
   });
@@ -195,6 +217,46 @@ describe('PaymentsService', () => {
       expect(emailMock.sendWelcomeAfterPayment).toHaveBeenCalledWith(
         expect.objectContaining({ to: 'p@test.com', name: 'Juan' }),
       );
+      expect(result).toEqual({ status: 'success' });
+    });
+
+    it('compra de libro (additional_data="LIBRO:...") con response="S" → envía el email de confirmación', async () => {
+      prismaMock.payment.findUnique.mockResolvedValue(null);
+
+      const result = await service.handleWebhook({
+        operation: {
+          shop_process_id: SHOP_PROCESS_ID,
+          amount: AMOUNT,
+          currency: CURRENCY,
+          response: 'S',
+          authorization_number: 'AUTH1',
+          token: validToken(),
+          additional_data: 'LIBRO:lector@test.com',
+        },
+      });
+
+      expect(emailMock.sendBookPurchaseConfirmation).toHaveBeenCalledWith({ to: 'lector@test.com' });
+      expect(prismaMock.payment.update).not.toHaveBeenCalled();
+      expect(prismaMock.user.update).not.toHaveBeenCalled();
+      expect(result).toEqual({ status: 'success' });
+    });
+
+    it('compra de libro con response="N" → no envía email de confirmación', async () => {
+      prismaMock.payment.findUnique.mockResolvedValue(null);
+
+      const result = await service.handleWebhook({
+        operation: {
+          shop_process_id: SHOP_PROCESS_ID,
+          amount: AMOUNT,
+          currency: CURRENCY,
+          response: 'N',
+          response_code: '05',
+          token: validToken(),
+          additional_data: 'LIBRO:lector@test.com',
+        },
+      });
+
+      expect(emailMock.sendBookPurchaseConfirmation).not.toHaveBeenCalled();
       expect(result).toEqual({ status: 'success' });
     });
   });

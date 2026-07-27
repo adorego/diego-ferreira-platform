@@ -268,4 +268,27 @@ export class EmailService {
       html:    baseTemplate(content),
     });
   }
+
+  // ── Compra del libro confirmada ────────────────────────────────────────────
+
+  async sendBookPurchaseConfirmation(data: { to: string }) {
+    // TODO(Diego): reemplazar este contenido genérico con la entrega real
+    // (link de descarga del ebook, tracking de envío físico, etc.) una vez
+    // definido el mecanismo de entrega del libro.
+    const content = `
+      <h2 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#111111;">
+        ¡Gracias por tu compra! ✅
+      </h2>
+      <p style="margin:0 0 20px;font-size:15px;color:#444444;line-height:1.6;">
+        Tu pago por <strong>Despertá y avanzá, ¡Carajo!</strong> fue confirmado.
+        Diego se va a poner en contacto para coordinar la entrega de tu libro.
+      </p>`;
+
+    await this.resend.emails.send({
+      from:    this.from,
+      to:      data.to,
+      subject: 'Compra confirmada — Despertá y avanzá, ¡Carajo!',
+      html:    baseTemplate(content),
+    });
+  }
 }

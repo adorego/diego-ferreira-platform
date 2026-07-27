@@ -9,6 +9,7 @@ import CambiosSection from "@/components/CambiosSection";
 import MetodoSection from "@/components/MetodoSection";
 import ParaQuienSection from "@/components/ParaQuienSection";
 import CierreSection from "@/components/CierreSection";
+import BookSection from "@/components/BookSection";
 import PreciosSection from "@/components/PreciosSection";
 
 const BG = "#FAFAF5";
@@ -27,6 +28,7 @@ export default function CoachingElitePage() {
       <MetodoSection />
       <ParaQuienSection />
       <CierreSection />
+      <BookSection />
       <PreciosSection />
       <Footer />
     </Box>

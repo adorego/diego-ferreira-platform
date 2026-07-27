@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { label: 'Cómo funciona', href: '/main#identificacion' },
   { label: 'El Método',     href: '/main#metodo' },
   { label: 'Para quién es', href: '/main#para-quien' },
+  { label: 'El libro',      href: '/main#libro' },
   { label: 'Precios',       href: '/main#precios' },
 ]
 
@@ -20,7 +21,8 @@ const NUMBERED_LINKS = [
   { num: '01', label: 'Cómo funciona', href: '/main#identificacion' },
   { num: '02', label: 'El Método',     href: '/main#metodo' },
   { num: '03', label: 'Para quién es', href: '/main#para-quien' },
-  { num: '04', label: 'Precios',       href: '/main#precios' },
+  { num: '04', label: 'El libro',      href: '/main#libro' },
+  { num: '05', label: 'Precios',       href: '/main#precios' },
 ]
 
 function scrollTo(href: string) {

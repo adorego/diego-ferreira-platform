@@ -65,6 +65,54 @@ export class PaymentsService {
     return { processId: shopProcessId.toString() };
   }
 
+  // Compra directa del libro "Despertá y avanzá, ¡Carajo!" — no requiere paciente/patientId,
+  // por eso no persiste en Payment (que está atado a User). El shop_process_id lleva el
+  // prefijo numérico "9" para no pisar el rango de los pagos de coaching.
+  async createBookPaymentLink(buyerEmail: string, amount: number, currency: string) {
+    const shopProcessId = Number(`9${Date.now()}`.slice(0, 15));
+    const amountStr     = amount.toFixed(2);
+
+    const token = crypto.createHash('md5')
+      .update(
+        this.cfg.get('BANCARD_PRIVATE_KEY') +
+        shopProcessId.toString() + amountStr + currency,
+      )
+      .digest('hex');
+
+    const body = {
+      public_key: this.cfg.get('BANCARD_PUBLIC_KEY'),
+      operation: {
+        token,
+        shop_process_id: shopProcessId,
+        amount:          amountStr,
+        currency,
+        iva_amount:      '0.00',
+        description:     `Libro: Despertá y avanzá, ¡Carajo!`,
+        // TODO(Diego): confirmar si Bancard efectivamente devuelve additional_data en el
+        // webhook de confirmación en producción — de eso depende que el email de compra
+        // del libro se envíe automáticamente (ver handleWebhook, rama "LIBRO:").
+        additional_data: `LIBRO:${buyerEmail}`,
+        return_url:  `${this.cfg.get('FRONTEND_URL')}/libro/pago/confirmacion`,
+        cancel_url:  `${this.cfg.get('FRONTEND_URL')}/libro/pago/cancelado`,
+      },
+    };
+
+    const res = await fetch(
+      `${this.cfg.get('BANCARD_BASE_URL')}/vpos/api/0.3/single_buy`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body) },
+    );
+    const data = await res.json();
+    if (data.status !== 'success')
+      throw new BadRequestException(data.messages?.[0]?.dsc ?? 'Error Bancard');
+
+    this.logger.log(
+      `Compra de libro iniciada — shop_process_id: ${shopProcessId} | email: ${buyerEmail}`,
+    );
+
+    return { processId: shopProcessId.toString() };
+  }
+
   async handleWebhook(payload: any) {
     const op = payload?.operation;
 
@@ -104,6 +152,14 @@ export class PaymentsService {
     });
 
     if (!payment) {
+      // No es un pago de coaching conocido — puede ser una compra del libro,
+      // identificada por el prefijo "LIBRO:" que le agregamos a additional_data
+      // al iniciar el pago en createBookPaymentLink().
+      const bookEmail = this.extractBookBuyerEmail(op.additional_data);
+      if (bookEmail) {
+        return this.handleBookWebhook(op, bookEmail);
+      }
+
       this.logger.warn(
         `Webhook para pago inexistente: ${op.shop_process_id}`,
       );
@@ -149,6 +205,30 @@ export class PaymentsService {
       name:        payment.patient.name,
       calendarUrl: `${this.cfg.get('FRONTEND_URL')}/registrados`,
     });
+
+    return { status: 'success' };
+  }
+
+  private extractBookBuyerEmail(additionalData: unknown): string | null {
+    if (typeof additionalData !== 'string' || !additionalData.startsWith('LIBRO:')) {
+      return null;
+    }
+    return additionalData.slice('LIBRO:'.length) || null;
+  }
+
+  private async handleBookWebhook(op: any, buyerEmail: string) {
+    if (op.response !== 'S') {
+      this.logger.log(
+        `Compra de libro rechazada — shop_process_id: ${op.shop_process_id} | código: ${op.response_code}`,
+      );
+      return { status: 'success' };
+    }
+
+    this.logger.log(
+      `Compra de libro confirmada — shop_process_id: ${op.shop_process_id} | email: ${buyerEmail}`,
+    );
+
+    await this.email.sendBookPurchaseConfirmation({ to: buyerEmail });
 
     return { status: 'success' };
   }

@@ -1,10 +1,15 @@
 import {
   Controller, Post, Body,
-  UnauthorizedException,
+  UnauthorizedException, BadRequestException,
 } from '@nestjs/common'
 import { PaymentsService } from './payments.service'
 import { ConfigService }   from '@nestjs/config'
 import * as jwt from 'jsonwebtoken'
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// TODO(Diego): confirmar precio final de venta del libro (ver apps/web/src/lib/book.ts).
+const BOOK_PRICE = { amount: 150000, currency: 'PYG' }
 
 @Controller('payments')
 export class PaymentsController {
@@ -25,6 +30,16 @@ export class PaymentsController {
     const amount   = payload.amount   ?? 1300
     const currency = payload.currency ?? 'USD'
     return this.payments.createPaymentLink(payload.patientId, amount, currency)
+  }
+
+  @Post('libro/initiate')
+  async initiateBookPurchase(@Body() body: { email: string }) {
+    if (!body.email || !EMAIL_RE.test(body.email)) {
+      throw new BadRequestException('Email inválido')
+    }
+    return this.payments.createBookPaymentLink(
+      body.email, BOOK_PRICE.amount, BOOK_PRICE.currency,
+    )
   }
 
   @Post('webhook')

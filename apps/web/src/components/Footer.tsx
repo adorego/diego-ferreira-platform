@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { label: 'El método',     href: '/main#metodo' },
   { label: 'Para quién es', href: '/main#para-quien' },
   { label: 'Resultados',    href: '/main#cambios' },
+  { label: 'El libro',      href: '/main#libro' },
   { label: 'Agendar',       href: '/agendar' },
 ]
 

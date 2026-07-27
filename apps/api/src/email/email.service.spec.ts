@@ -95,4 +95,12 @@ describe('EmailService', () => {
 
     expect(mockResendSend).toHaveBeenCalled();
   });
+
+  it('sendBookPurchaseConfirmation() llama resend con el to correcto', async () => {
+    await service.sendBookPurchaseConfirmation({ to: 'lector@test.com' });
+
+    expect(mockResendSend).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'lector@test.com' }),
+    );
+  });
 });
