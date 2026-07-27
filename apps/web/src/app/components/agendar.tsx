@@ -14,7 +14,7 @@ const ACCENT = '#EBBF01'
 const TEAL   = '#00727A'
 
 const PLANES: Record<string, { nombre: string; precio: string; color: string }> = {
-  basico:   { nombre: 'Básico',   precio: '$1,300 USD', color: 'rgba(255,255,255,0.5)' },
+  basico:   { nombre: 'Básico',   precio: '$1,600 USD', color: 'rgba(255,255,255,0.5)' },
   estandar: { nombre: 'Estándar', precio: '$1,800 USD', color: ACCENT },
   premium:  { nombre: 'Premium',  precio: '$2,000 USD', color: TEAL },
 }

@@ -47,7 +47,7 @@ const PLANS = [
   {
     id: 'basico',
     nombre: 'Básico',
-    precio: '$1,300',
+    precio: '$1,600',
     moneda: 'USD',
     badge: null,
     accentColor: 'rgba(255,255,255,0.5)',

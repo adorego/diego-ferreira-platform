@@ -1,6 +1,8 @@
 'use client'
 import * as React from 'react'
-import { Box, Grid, Button, Typography } from '@mui/material'
+import { Box, Grid, Button, Typography, IconButton } from '@mui/material'
+import VolumeUpIcon from '@mui/icons-material/VolumeUp'
+import VolumeOffIcon from '@mui/icons-material/VolumeOff'
 import Link from 'next/link'
 
 const ACCENT = '#EBBF01'
@@ -11,6 +13,29 @@ interface HeroSplitProps {
 }
 
 export default function HeroSplit({ videoUrl }: HeroSplitProps) {
+  const videoRef        = React.useRef<HTMLVideoElement>(null)
+  const [muted, setMuted]   = React.useState(true)
+  const [volume, setVolume] = React.useState(1)
+
+  function toggleMute() {
+    setMuted(prev => {
+      const next = !prev
+      if (!next) {
+        const audibleVolume = volume > 0 ? volume : 1
+        setVolume(audibleVolume)
+        if (videoRef.current) videoRef.current.volume = audibleVolume
+      }
+      return next
+    })
+  }
+
+  function handleVolumeChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = Number(e.target.value)
+    setVolume(v)
+    setMuted(v === 0)
+    if (videoRef.current) videoRef.current.volume = v
+  }
+
   return (
     <Box
       component="section"
@@ -157,6 +182,7 @@ export default function HeroSplit({ videoUrl }: HeroSplitProps) {
           <Grid item xs={12} md={5}>
             <Box
               sx={{
+                position: 'relative',
                 borderRadius: 3,
                 overflow: 'hidden',
                 bgcolor: 'rgba(0,0,0,0.65)',
@@ -167,13 +193,57 @@ export default function HeroSplit({ videoUrl }: HeroSplitProps) {
             >
               <Box
                 component="video"
+                ref={videoRef}
                 src={videoUrl}
                 autoPlay
-                muted
+                muted={muted}
                 loop
                 playsInline
                 sx={{ width: '100%', display: 'block', maxHeight: 360, objectFit: 'cover' }}
               />
+
+              {/* Controles de volumen */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 12,
+                  right: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  bgcolor: 'rgba(0,0,0,0.55)',
+                  backdropFilter: 'blur(6px)',
+                  borderRadius: 50,
+                  px: 1.5,
+                  py: 0.5,
+                }}
+              >
+                <IconButton
+                  onClick={toggleMute}
+                  size="small"
+                  aria-label={muted ? 'Activar sonido' : 'Silenciar'}
+                  sx={{ color: 'white', p: 0.5 }}
+                >
+                  {muted
+                    ? <VolumeOffIcon fontSize="small" />
+                    : <VolumeUpIcon fontSize="small" />}
+                </IconButton>
+                <Box
+                  component="input"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={muted ? 0 : volume}
+                  onChange={handleVolumeChange}
+                  aria-label="Volumen"
+                  sx={{
+                    width: 64,
+                    accentColor: ACCENT,
+                    cursor: 'pointer',
+                  }}
+                />
+              </Box>
             </Box>
           </Grid>
         </Grid>
