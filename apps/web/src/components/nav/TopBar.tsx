@@ -13,7 +13,7 @@ const NAV_LINKS = [
   { label: 'Cómo funciona', href: '/main#identificacion' },
   { label: 'El Método',     href: '/main#metodo' },
   { label: 'Para quién es', href: '/main#para-quien' },
-  { label: 'El libro',      href: '/main#libro' },
+  { label: 'Libro',      href: '/main#libro' },
   { label: 'Precios',       href: '/main#precios' },
 ]
 
