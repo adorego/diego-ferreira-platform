@@ -10,14 +10,14 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://diegoferreira.coach"),
   title: "Diego Ferreira | Psicólogo Deportivo & Alto Rendimiento Mental",
   description:
     "Ex atleta olímpico y psicólogo deportivo. En 6 semanas entrenamos tu mente para que rindas al nivel que ya tenés en el entrenamiento. Sesión inicial gratuita.",
-  metadataBase: new URL("https://www.diegoferreira.com"),
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    url: "https://www.diegoferreira.com",
+    url: "https://diegoferreira.coach",
     siteName: "Diego Ferreira",
     title: "Diego Ferreira | Psicólogo Deportivo & Alto Rendimiento Mental",
     description:
@@ -45,16 +45,18 @@ export const metadata: Metadata = {
     "alto rendimiento mental",
     "entrenamiento mental",
     "psicología del deporte",
-    "rendimiento deportivo",
-    "atleta olímpico",
     "Diego Ferreira",
-    "mentalidad ganadora",
-    "coaching deportivo",
+    "atleta olímpico",
   ],
   authors: [{ name: "Diego Ferreira" }],
-  creator: "Diego Ferreira",
   icons: {
-    icon: [{ url: "/favicon.ico" }],
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    other: [{ rel: "manifest", url: "/site.webmanifest" }],
   },
   robots: {
     index: true,
