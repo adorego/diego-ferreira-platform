@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -65,12 +66,20 @@ export class PaymentsService {
     return { processId: shopProcessId.toString() };
   }
 
-  // Compra directa del libro "Despertá y avanzá, ¡Carajo!" — no requiere paciente/patientId,
-  // por eso no persiste en Payment (que está atado a User). El shop_process_id lleva el
-  // prefijo numérico "9" para no pisar el rango de los pagos de coaching.
-  async createBookPaymentLink(buyerEmail: string, amount: number, currency: string) {
-    const shopProcessId = Number(`9${Date.now()}`.slice(0, 15));
-    const amountStr     = amount.toFixed(2);
+  // Compra directa del libro "Despertá y avanzá, ¡Carajo!" (USD 12.99 fijo) — no requiere
+  // paciente/patientId, por eso tiene su propia tabla BookPurchase en vez de Payment.
+  async createBookPaymentLink(email: string, nombre: string) {
+    const amountStr = '12.99';
+    const currency  = 'USD';
+
+    // Bancard exige que shop_process_id sea numérico (verificado contra la API real de
+    // VPOS 2.0 en este proyecto) — por eso, aunque generamos un UUID como identificador
+    // interno único de la compra, el valor que efectivamente viaja a Bancard y se guarda
+    // en BookPurchase.shopProcessId es un número derivado de timestamp + random.
+    const purchaseUuid  = crypto.randomUUID();
+    const shopProcessId = Number(
+      `7${Date.now()}${Math.floor(100 + Math.random() * 900)}`.slice(0, 15),
+    );
 
     const token = crypto.createHash('md5')
       .update(
@@ -78,6 +87,11 @@ export class PaymentsService {
         shopProcessId.toString() + amountStr + currency,
       )
       .digest('hex');
+
+    const returnUrl = this.cfg.get('BANCARD_RETURN_URL_LIBRO')
+      || `${this.cfg.get('FRONTEND_URL')}/avanza/confirmacion`;
+    const cancelUrl = this.cfg.get('BANCARD_CANCEL_URL_LIBRO')
+      || `${this.cfg.get('FRONTEND_URL')}/avanza/cancelado`;
 
     const body = {
       public_key: this.cfg.get('BANCARD_PUBLIC_KEY'),
@@ -87,13 +101,10 @@ export class PaymentsService {
         amount:          amountStr,
         currency,
         iva_amount:      '0.00',
-        description:     `Libro: Despertá y avanzá, ¡Carajo!`,
-        // TODO(Diego): confirmar si Bancard efectivamente devuelve additional_data en el
-        // webhook de confirmación en producción — de eso depende que el email de compra
-        // del libro se envíe automáticamente (ver handleWebhook, rama "LIBRO:").
-        additional_data: `LIBRO:${buyerEmail}`,
-        return_url:  `${this.cfg.get('FRONTEND_URL')}/libro/pago/confirmacion`,
-        cancel_url:  `${this.cfg.get('FRONTEND_URL')}/libro/pago/cancelado`,
+        description:     'Libro: Despertá y avanzá, ¡Carajo!',
+        additional_data: '',
+        return_url:      returnUrl,
+        cancel_url:      cancelUrl,
       },
     };
 
@@ -106,11 +117,21 @@ export class PaymentsService {
     if (data.status !== 'success')
       throw new BadRequestException(data.messages?.[0]?.dsc ?? 'Error Bancard');
 
+    await this.prisma.bookPurchase.create({
+      data: {
+        shopProcessId: shopProcessId.toString(),
+        email,
+        nombre,
+        amount:   amountStr,
+        currency,
+      },
+    });
+
     this.logger.log(
-      `Compra de libro iniciada — shop_process_id: ${shopProcessId} | email: ${buyerEmail}`,
+      `Compra de libro iniciada — uuid: ${purchaseUuid} | shop_process_id: ${shopProcessId} | email: ${email}`,
     );
 
-    return { processId: shopProcessId.toString() };
+    return { processId: shopProcessId.toString(), shopProcessId: shopProcessId.toString() };
   }
 
   async handleWebhook(payload: any) {
@@ -153,11 +174,12 @@ export class PaymentsService {
 
     if (!payment) {
       // No es un pago de coaching conocido — puede ser una compra del libro,
-      // identificada por el prefijo "LIBRO:" que le agregamos a additional_data
-      // al iniciar el pago en createBookPaymentLink().
-      const bookEmail = this.extractBookBuyerEmail(op.additional_data);
-      if (bookEmail) {
-        return this.handleBookWebhook(op, bookEmail);
+      // que usa su propia tabla (BookPurchase) en vez de Payment.
+      const bookPurchase = await this.prisma.bookPurchase.findUnique({
+        where: { shopProcessId: op.shop_process_id },
+      });
+      if (bookPurchase) {
+        return this.handleBookPurchaseWebhook(op, bookPurchase);
       }
 
       this.logger.warn(
@@ -209,27 +231,59 @@ export class PaymentsService {
     return { status: 'success' };
   }
 
-  private extractBookBuyerEmail(additionalData: unknown): string | null {
-    if (typeof additionalData !== 'string' || !additionalData.startsWith('LIBRO:')) {
-      return null;
-    }
-    return additionalData.slice('LIBRO:'.length) || null;
-  }
-
-  private async handleBookWebhook(op: any, buyerEmail: string) {
-    if (op.response !== 'S') {
-      this.logger.log(
-        `Compra de libro rechazada — shop_process_id: ${op.shop_process_id} | código: ${op.response_code}`,
+  private async handleBookPurchaseWebhook(
+    op: any,
+    purchase: { shopProcessId: string; status: string },
+  ) {
+    if (purchase.status === 'CONFIRMED') {
+      this.logger.warn(
+        `Webhook duplicado para compra de libro ya confirmada: ${op.shop_process_id}`,
       );
       return { status: 'success' };
     }
 
+    if (op.response !== 'S') {
+      this.logger.log(
+        `Compra de libro rechazada — shop_process_id: ${op.shop_process_id} | código: ${op.response_code}`,
+      );
+      await this.prisma.bookPurchase.update({
+        where: { shopProcessId: op.shop_process_id },
+        data:  { status: 'FAILED' },
+      });
+      return { status: 'success' };
+    }
+
+    const downloadToken = crypto.randomUUID();
+    await this.prisma.bookPurchase.update({
+      where: { shopProcessId: op.shop_process_id },
+      data:  { status: 'CONFIRMED', downloadToken },
+    });
+
     this.logger.log(
-      `Compra de libro confirmada — shop_process_id: ${op.shop_process_id} | email: ${buyerEmail}`,
+      `Compra de libro confirmada — shop_process_id: ${op.shop_process_id}`,
     );
 
-    await this.email.sendBookPurchaseConfirmation({ to: buyerEmail });
+    // TODO(Diego): enviar email al comprador con el link de descarga
+    // (/payments/libro/download?token=...) una vez definido el template. Por ahora
+    // no se envía ninguna notificación automática.
 
     return { status: 'success' };
+  }
+
+  async downloadBook(token: string) {
+    const purchase = await this.prisma.bookPurchase.findUnique({
+      where: { downloadToken: token },
+    });
+
+    if (!purchase || purchase.status !== 'CONFIRMED') {
+      throw new NotFoundException('Link de descarga inválido o expirado');
+    }
+
+    await this.prisma.bookPurchase.update({
+      where: { downloadToken: token },
+      data:  { downloadedAt: new Date() },
+    });
+
+    return { downloadUrl: '/libro-completo.pdf' };
   }
 }

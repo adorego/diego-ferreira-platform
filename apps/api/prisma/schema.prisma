@@ -61,6 +61,20 @@ model Payment {
   createdAt        DateTime  @default(now())
 }
 
+model BookPurchase {
+  id            Int       @id @default(autoincrement())
+  shopProcessId String    @unique
+  email         String
+  nombre        String
+  amount        String    @default("12.99")
+  currency      String    @default("USD")
+  status        String    @default("PENDING")
+  downloadToken String?   @unique
+  downloadedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 enum Role {
   PATIENT
   ADMIN

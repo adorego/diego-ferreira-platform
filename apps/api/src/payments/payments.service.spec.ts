@@ -8,8 +8,9 @@ import { EmailService } from '../email/email.service';
 describe('PaymentsService', () => {
   let service: PaymentsService;
   let prismaMock: {
-    payment: { create: jest.Mock; update: jest.Mock; findUnique: jest.Mock };
-    user:    { update: jest.Mock };
+    payment:      { create: jest.Mock; update: jest.Mock; findUnique: jest.Mock };
+    user:         { update: jest.Mock };
+    bookPurchase: { create: jest.Mock; update: jest.Mock; findUnique: jest.Mock };
   };
   let emailMock: { sendWelcomeAfterPayment: jest.Mock; sendBookPurchaseConfirmation: jest.Mock };
   let fetchMock: jest.Mock;
@@ -36,8 +37,9 @@ describe('PaymentsService', () => {
 
   beforeEach(async () => {
     prismaMock = {
-      payment: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
-      user:    { update: jest.fn() },
+      payment:      { create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
+      user:         { update: jest.fn() },
+      bookPurchase: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn().mockResolvedValue(null) },
     };
     emailMock = {
       sendWelcomeAfterPayment: jest.fn().mockResolvedValue(undefined),
@@ -81,10 +83,11 @@ describe('PaymentsService', () => {
   });
 
   describe('createBookPaymentLink()', () => {
-    it('genera hash MD5, marca additional_data con el email y llama fetch a Bancard API', async () => {
+    it('genera hash MD5, monto fijo USD 12.99, persiste en BookPurchase y llama fetch a Bancard API', async () => {
       fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success' }) });
+      prismaMock.bookPurchase.create.mockResolvedValue({});
 
-      const result = await service.createBookPaymentLink('lector@test.com', 150000, 'PYG');
+      const result = await service.createBookPaymentLink('lector@test.com', 'Lector Test');
 
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining('/single_buy'),
@@ -92,10 +95,22 @@ describe('PaymentsService', () => {
       );
       const body = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(body.operation.token).toMatch(/^[a-f0-9]{32}$/);
-      expect(body.operation.additional_data).toBe('LIBRO:lector@test.com');
+      expect(body.operation.amount).toBe('12.99');
+      expect(body.operation.currency).toBe('USD');
       expect(body.operation.description).toContain('Libro');
+      expect(prismaMock.bookPurchase.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: 'lector@test.com',
+            nombre: 'Lector Test',
+            amount: '12.99',
+            currency: 'USD',
+          }),
+        }),
+      );
       expect(prismaMock.payment.create).not.toHaveBeenCalled();
       expect(result.processId).toBeDefined();
+      expect(result.shopProcessId).toBe(result.processId);
     });
   });
 
@@ -220,8 +235,12 @@ describe('PaymentsService', () => {
       expect(result).toEqual({ status: 'success' });
     });
 
-    it('compra de libro (additional_data="LIBRO:...") con response="S" → envía el email de confirmación', async () => {
+    it('compra de libro (BookPurchase) con response="S" → confirma y genera downloadToken', async () => {
       prismaMock.payment.findUnique.mockResolvedValue(null);
+      prismaMock.bookPurchase.findUnique.mockResolvedValue({
+        shopProcessId: SHOP_PROCESS_ID,
+        status: 'PENDING',
+      });
 
       const result = await service.handleWebhook({
         operation: {
@@ -231,18 +250,29 @@ describe('PaymentsService', () => {
           response: 'S',
           authorization_number: 'AUTH1',
           token: validToken(),
-          additional_data: 'LIBRO:lector@test.com',
         },
       });
 
-      expect(emailMock.sendBookPurchaseConfirmation).toHaveBeenCalledWith({ to: 'lector@test.com' });
+      expect(prismaMock.bookPurchase.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { shopProcessId: SHOP_PROCESS_ID },
+          data: expect.objectContaining({
+            status: 'CONFIRMED',
+            downloadToken: expect.any(String),
+          }),
+        }),
+      );
       expect(prismaMock.payment.update).not.toHaveBeenCalled();
       expect(prismaMock.user.update).not.toHaveBeenCalled();
       expect(result).toEqual({ status: 'success' });
     });
 
-    it('compra de libro con response="N" → no envía email de confirmación', async () => {
+    it('compra de libro con response="N" → marca BookPurchase como FAILED', async () => {
       prismaMock.payment.findUnique.mockResolvedValue(null);
+      prismaMock.bookPurchase.findUnique.mockResolvedValue({
+        shopProcessId: SHOP_PROCESS_ID,
+        status: 'PENDING',
+      });
 
       const result = await service.handleWebhook({
         operation: {
@@ -252,12 +282,68 @@ describe('PaymentsService', () => {
           response: 'N',
           response_code: '05',
           token: validToken(),
-          additional_data: 'LIBRO:lector@test.com',
         },
       });
 
-      expect(emailMock.sendBookPurchaseConfirmation).not.toHaveBeenCalled();
+      expect(prismaMock.bookPurchase.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'FAILED' } }),
+      );
       expect(result).toEqual({ status: 'success' });
+    });
+
+    it('compra de libro ya CONFIRMED → no duplica la confirmación', async () => {
+      prismaMock.payment.findUnique.mockResolvedValue(null);
+      prismaMock.bookPurchase.findUnique.mockResolvedValue({
+        shopProcessId: SHOP_PROCESS_ID,
+        status: 'CONFIRMED',
+      });
+
+      const result = await service.handleWebhook({
+        operation: {
+          shop_process_id: SHOP_PROCESS_ID,
+          amount: AMOUNT,
+          currency: CURRENCY,
+          response: 'S',
+          authorization_number: 'AUTH1',
+          token: validToken(),
+        },
+      });
+
+      expect(prismaMock.bookPurchase.update).not.toHaveBeenCalled();
+      expect(result).toEqual({ status: 'success' });
+    });
+  });
+
+  describe('downloadBook()', () => {
+    it('con token inexistente → lanza NotFoundException', async () => {
+      prismaMock.bookPurchase.findUnique.mockResolvedValue(null);
+
+      await expect(service.downloadBook('token-invalido')).rejects.toThrow();
+    });
+
+    it('con status distinto de CONFIRMED → lanza NotFoundException', async () => {
+      prismaMock.bookPurchase.findUnique.mockResolvedValue({
+        downloadToken: 'tok-1', status: 'PENDING',
+      });
+
+      await expect(service.downloadBook('tok-1')).rejects.toThrow();
+    });
+
+    it('con compra CONFIRMED → actualiza downloadedAt y retorna downloadUrl', async () => {
+      prismaMock.bookPurchase.findUnique.mockResolvedValue({
+        downloadToken: 'tok-1', status: 'CONFIRMED',
+      });
+      prismaMock.bookPurchase.update.mockResolvedValue({});
+
+      const result = await service.downloadBook('tok-1');
+
+      expect(prismaMock.bookPurchase.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { downloadToken: 'tok-1' },
+          data: expect.objectContaining({ downloadedAt: expect.any(Date) }),
+        }),
+      );
+      expect(result).toEqual({ downloadUrl: '/libro-completo.pdf' });
     });
   });
 });
