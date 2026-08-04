@@ -273,6 +273,51 @@ export class PaymentsService {
     return { status: 'success' };
   }
 
+  // Firma indicada por el equipo para rollback/get_confirmation — no verificada de forma
+  // independiente contra el manual VPOS 2.0 (a diferencia del resto de las firmas de este
+  // archivo, que sí están confirmadas contra la API real). Si Bancard rechaza el rollback,
+  // revisar si el endpoint espera el monto/moneda reales de la operación en vez del literal
+  // "0.00".
+  async rollback(shopProcessId: string) {
+    const token = crypto
+      .createHash('md5')
+      .update(`${this.cfg.get('BANCARD_PRIVATE_KEY')}${shopProcessId}rollback0.00`)
+      .digest('hex');
+
+    const res = await fetch(
+      `${this.cfg.get('BANCARD_BASE_URL')}/vpos/api/0.3/single_buy/rollback`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          public_key: this.cfg.get('BANCARD_PUBLIC_KEY'),
+          operation: { token, shop_process_id: shopProcessId },
+        }),
+      },
+    );
+    return res.json();
+  }
+
+  async getConfirmation(shopProcessId: string) {
+    const token = crypto
+      .createHash('md5')
+      .update(`${this.cfg.get('BANCARD_PRIVATE_KEY')}${shopProcessId}get_confirmation`)
+      .digest('hex');
+
+    const res = await fetch(
+      `${this.cfg.get('BANCARD_BASE_URL')}/vpos/api/0.3/single_buy/confirmations`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          public_key: this.cfg.get('BANCARD_PUBLIC_KEY'),
+          operation: { token, shop_process_id: shopProcessId },
+        }),
+      },
+    );
+    return res.json();
+  }
+
   async downloadBook(token: string) {
     const purchase = await this.prisma.bookPurchase.findUnique({
       where: { downloadToken: token },

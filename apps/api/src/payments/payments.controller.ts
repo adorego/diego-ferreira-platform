@@ -1,9 +1,10 @@
 import {
-  Controller, Post, Get, Body, Query,
+  Controller, Post, Get, Body, Query, UseGuards,
   UnauthorizedException, BadRequestException,
 } from '@nestjs/common'
 import { PaymentsService } from './payments.service'
 import { ConfigService }   from '@nestjs/config'
+import { JwtGuard }        from '../auth/jwt.guard'
 import * as jwt from 'jsonwebtoken'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -53,5 +54,17 @@ export class PaymentsController {
   @Post('confirm')
   confirm(@Body() body: any) {
     return this.payments.handleWebhook(body)
+  }
+
+  @UseGuards(JwtGuard)
+  @Post('rollback')
+  rollback(@Body() body: { shopProcessId: string }) {
+    return this.payments.rollback(body.shopProcessId)
+  }
+
+  @UseGuards(JwtGuard)
+  @Post('confirmation')
+  getConfirmation(@Body() body: { shopProcessId: string }) {
+    return this.payments.getConfirmation(body.shopProcessId)
   }
 }
