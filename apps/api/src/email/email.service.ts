@@ -188,6 +188,27 @@ export class EmailService {
     });
   }
 
+  // ── Rechazo de solicitud ─────────────────────────────────────────────────
+
+  async sendRejection(data: { to: string; name: string }) {
+    const content = `
+      <h2 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#111111;">
+        Novedades sobre tu solicitud
+      </h2>
+      <p style="margin:0 0 24px;font-size:15px;color:#444444;line-height:1.6;">
+        Hola <strong>${data.name}</strong>, por el momento no podemos avanzar con tu
+        solicitud para el programa de coaching. Si creés que se trata de un error o
+        querés más información, respondé este email.
+      </p>`;
+
+    await this.resend.emails.send({
+      from:    this.from,
+      to:      data.to,
+      subject: 'Novedades sobre tu solicitud',
+      html:    baseTemplate(content),
+    });
+  }
+
   // ── Recordatorio de sesión ────────────────────────────────────────────────
 
   async sendReminder(data: {

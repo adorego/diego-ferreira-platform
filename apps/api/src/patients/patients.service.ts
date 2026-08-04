@@ -73,6 +73,31 @@ export class PatientsService {
     return { ok: true, paymentUrl };
   }
 
+  // NOTA: AppStatus (schema.prisma) solo tiene PENDING|CONFIRMED|COMPLETED|CANCELLED —
+  // no existe un valor REJECTED dedicado. Agregarlo requeriría una migración de Prisma
+  // contra la base de staging, que no se hizo acá. Se reusa CANCELLED como el más
+  // cercano semánticamente a "rechazado por Diego"; si se necesita distinguir de una
+  // cancelación real (iniciada por el paciente), hay que decidir el enum nuevo y migrar.
+  async rejectSession(sessionId: number) {
+    const session = await this.prisma.session.findUnique({
+      where:   { id: sessionId },
+      include: { patient: true },
+    });
+    if (!session) throw new NotFoundException('Sesión no encontrada');
+
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data:  { status: 'CANCELLED' },
+    });
+
+    await this.email.sendRejection({
+      to:   session.patient.email,
+      name: session.patient.name,
+    });
+
+    return { ok: true };
+  }
+
   async updateSessionDate(
     sessionId: number,
     data: { start: string; end: string },

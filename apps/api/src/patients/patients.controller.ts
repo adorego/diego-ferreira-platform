@@ -36,6 +36,13 @@ export class PatientsController {
     return this.svc.admitPatient(dto);
   }
 
+  // POST /patients/sessions/:id/reject  — Diego rechaza una sesión pendiente
+  @Post('/sessions/:id/reject')
+  @UseGuards(JwtGuard)
+  rejectSession(@Param('id') id: string) {
+    return this.svc.rejectSession(+id);
+  }
+
   // PATCH /sessions/:id/date  — editar fecha de sesión
   @Patch('/sessions/:id/date')
   @UseGuards(JwtGuard)
