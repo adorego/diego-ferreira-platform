@@ -66,11 +66,14 @@ export class PaymentsService {
     return { processId: shopProcessId.toString() };
   }
 
-  // Compra directa del libro "Despertá y avanzá, ¡Carajo!" (USD 12.99 fijo) — no requiere
+  // Compra directa del libro "Despertá y avanzá, ¡Carajo!" — no requiere
   // paciente/patientId, por eso tiene su propia tabla BookPurchase en vez de Payment.
+  // BOOK_AMOUNT/BOOK_CURRENCY son configurables porque Bancard staging solo tiene PYG
+  // habilitado (USD hardcodeado generaba un process_id inválido en el VPOS) — cambiar
+  // a USD cuando esté habilitado en Bancard producción.
   async createBookPaymentLink(email: string, nombre: string) {
-    const amountStr = '12.99';
-    const currency  = 'USD';
+    const amountStr = this.cfg.get('BOOK_AMOUNT') ?? '95000';
+    const currency  = this.cfg.get('BOOK_CURRENCY') ?? 'PYG';
 
     // Bancard exige que shop_process_id sea numérico (verificado contra la API real de
     // VPOS 2.0 en este proyecto) — por eso, aunque generamos un UUID como identificador

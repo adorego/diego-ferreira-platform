@@ -84,7 +84,7 @@ describe('PaymentsService', () => {
   });
 
   describe('createBookPaymentLink()', () => {
-    it('genera hash MD5, monto fijo USD 12.99, persiste en BookPurchase y llama fetch a Bancard API', async () => {
+    it('con BOOK_AMOUNT/BOOK_CURRENCY sin configurar → usa el fallback 95000 PYG', async () => {
       fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success' }) });
       prismaMock.bookPurchase.create.mockResolvedValue({});
 
@@ -96,22 +96,48 @@ describe('PaymentsService', () => {
       );
       const body = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(body.operation.token).toMatch(/^[a-f0-9]{32}$/);
-      expect(body.operation.amount).toBe('12.99');
-      expect(body.operation.currency).toBe('USD');
+      expect(body.operation.amount).toBe('95000');
+      expect(body.operation.currency).toBe('PYG');
       expect(body.operation.description).toContain('Libro');
       expect(prismaMock.bookPurchase.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             email: 'lector@test.com',
             nombre: 'Lector Test',
-            amount: '12.99',
-            currency: 'USD',
+            amount: '95000',
+            currency: 'PYG',
           }),
         }),
       );
       expect(prismaMock.payment.create).not.toHaveBeenCalled();
       expect(result.processId).toBeDefined();
       expect(result.shopProcessId).toBe(result.processId);
+    });
+
+    it('con BOOK_AMOUNT/BOOK_CURRENCY configuradas → las usa en vez del fallback', async () => {
+      const cfgWithBook = {
+        ...cfgValues,
+        BOOK_AMOUNT: '12.99',
+        BOOK_CURRENCY: 'USD',
+      };
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          PaymentsService,
+          { provide: PrismaService, useValue: prismaMock },
+          { provide: EmailService,  useValue: emailMock },
+          { provide: ConfigService, useValue: { get: (k: string) => (cfgWithBook as Record<string, string>)[k] } },
+        ],
+      }).compile();
+      const usdService = module.get<PaymentsService>(PaymentsService);
+
+      fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success' }) });
+      prismaMock.bookPurchase.create.mockResolvedValue({});
+
+      await usdService.createBookPaymentLink('lector@test.com', 'Lector Test');
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.operation.amount).toBe('12.99');
+      expect(body.operation.currency).toBe('USD');
     });
   });
 
