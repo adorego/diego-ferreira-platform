@@ -11,7 +11,11 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+    // Pasa por el proxy same-origin /api/auth/login (no directo a la API) — la cookie
+    // httpOnly que devuelve el backend queda scopeada al dominio de la API si se pide
+    // cross-origin, y el middleware de este admin (que corre en su propio dominio)
+    // nunca la ve. El proxy la re-emite como si viniera de este mismo origen.
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
