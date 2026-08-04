@@ -16,6 +16,7 @@ async function bootstrap() {
     process.env.ADMIN_URL,
     'https://diegoferreira.coach',
     'https://www.diegoferreira.coach',
+    'https://dfadmin-staging.up.railway.app',
   ].filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
