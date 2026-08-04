@@ -148,20 +148,33 @@ describe('EmailService', () => {
     );
   });
 
-  // BUG REAL (no corregido, solo documentado): ningún método de EmailService envuelve
-  // `this.transporter.sendMail(...)` en try/catch. Si Gmail SMTP falla o rechaza
-  // (token expirado, límite de envío, etc.), el error se propaga sin controlar hacia
-  // quien haya llamado al método — y ninguno de los callers reales
-  // (PaymentsService.handleWebhook, PatientsService.admitPatient/rejectSession,
-  // RemindersService.sendReminders) lo captura tampoco. Una caída del SMTP puede
-  // tumbar un webhook de pago o el cron de recordatorios completo.
-  it('si el envío falla → el error se propaga sin capturar (no hay try/catch)', async () => {
+  // Ya no es un bug: EmailService.send() envuelve todo sendMail en Promise.race +
+  // catch sin relanzar, precisamente para que una caída de Gmail SMTP no tumbe el
+  // webhook de pago ni el cron de recordatorios (los callers reales —
+  // PaymentsService.handleWebhook, PatientsService.admitPatient/rejectSession,
+  // RemindersService.sendReminders— siguen sin tener su propio try/catch, pero ya
+  // no lo necesitan).
+  it('si el envío falla → NO se propaga (el negocio sigue aunque el email falle)', async () => {
     mockSendMail.mockRejectedValueOnce(new Error('SMTP unavailable'));
 
     await expect(
       service.sendSessionBooked({
         patientName: 'Juan', patientEmail: 'juan@test.com', sessionDate: '01/06/2026',
       }),
-    ).rejects.toThrow('SMTP unavailable');
+    ).resolves.toBeUndefined();
+  });
+
+  it('si el envío tarda más de 10s → corta por timeout y no cuelga el caller', async () => {
+    jest.useFakeTimers();
+    mockSendMail.mockReturnValueOnce(new Promise(() => {})); // nunca resuelve
+
+    const pending = service.sendSessionBooked({
+      patientName: 'Juan', patientEmail: 'juan@test.com', sessionDate: '01/06/2026',
+    });
+
+    await jest.advanceTimersByTimeAsync(10_000);
+    await expect(pending).resolves.toBeUndefined();
+
+    jest.useRealTimers();
   });
 });

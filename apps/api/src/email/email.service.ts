@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
@@ -84,8 +84,11 @@ function baseTemplate(content: string): string {
 
 // ─── Servicio ────────────────────────────────────────────────────────────────
 
+const SEND_TIMEOUT_MS = 10_000;
+
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private _transporter: nodemailer.Transporter | null = null;
   private from = '"Diego Ferreira" <diego@diegoferreira.coach>';
 
@@ -95,7 +98,12 @@ export class EmailService {
   private get transporter(): nodemailer.Transporter {
     if (!this._transporter) {
       this._transporter = nodemailer.createTransport({
-        service: 'gmail',
+        // service:'gmail' resuelve smtp.gmail.com:465 (SSL implícito) y en Railway
+        // esa resolución prefería IPv6, que no tiene salida ahí — ENETUNREACH/ESOCKET.
+        // host/port explícitos con STARTTLS en 587 evita la resolución de 'service'.
+        host:   'smtp.gmail.com',
+        port:   587,
+        secure: false,
         auth: {
           type:         'OAuth2',
           user:         'diego@diegoferreira.coach',
@@ -106,6 +114,28 @@ export class EmailService {
       });
     }
     return this._transporter;
+  }
+
+  // Todo el envío pasa por acá en vez de llamar transporter.sendMail directo en cada
+  // método — Promise.race con timeout + catch-sin-relanzar una sola vez, no repetido
+  // 7 veces. Antes un email colgado (SMTP sin responder) podía trabar el webhook de
+  // pago o el cron de recordatorios completo; ahora el negocio sigue aunque el email
+  // falle o tarde más de 10s — el error queda solo logueado.
+  private async send(mailOptions: nodemailer.SendMailOptions): Promise<void> {
+    // El setTimeout se limpia con .finally() sin importar quién gane la carrera —
+    // si no, cada envío exitoso deja un timer de 10s colgado hasta que dispara solo
+    // (inofensivo en producción, pero deja handles abiertos en los tests).
+    let timeoutId!: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('Email timeout')), SEND_TIMEOUT_MS);
+    });
+
+    await Promise.race([this.transporter.sendMail(mailOptions), timeout])
+      .finally(() => clearTimeout(timeoutId))
+      .catch(err => {
+        this.logger.error(`Error enviando email a ${String(mailOptions.to)}: ${err.message}`);
+        // No relanzar — el flujo de negocio continúa aunque el email falle.
+      });
   }
 
   // ── Nueva sesión agendada (notificación a Diego) ──────────────────────────
@@ -144,7 +174,7 @@ export class EmailService {
       </table>
       ${btn('Ver en el dashboard', adminUrl, '#00727A')}`;
 
-    await this.transporter.sendMail({
+    await this.send({
       from:    this.from,
       to:      this.cfg.get<string>('DIEGO_EMAIL')!,
       subject: `Nueva sesión: ${data.patientName}`,
@@ -206,7 +236,7 @@ export class EmailService {
       </div>
       ${btn('Completar pago →', data.paymentUrl)}`;
 
-    await this.transporter.sendMail({
+    await this.send({
       from:    this.from,
       to:      data.to,
       subject: 'Tu programa con Diego Ferreira está confirmado ✓',
@@ -227,7 +257,7 @@ export class EmailService {
         querés más información, respondé este email.
       </p>`;
 
-    await this.transporter.sendMail({
+    await this.send({
       from:    this.from,
       to:      data.to,
       subject: 'Novedades sobre tu solicitud',
@@ -269,7 +299,7 @@ export class EmailService {
         Si necesitás cancelar o reagendar, contactá a Diego con al menos 24 hs de anticipación.
       </p>`;
 
-    await this.transporter.sendMail({
+    await this.send({
       from:    this.from,
       to:      data.to,
       subject,
@@ -312,7 +342,7 @@ export class EmailService {
         Este enlace es personal. Podés usarlo cuando quieras.
       </p>`;
 
-    await this.transporter.sendMail({
+    await this.send({
       from:    this.from,
       to:      data.to,
       subject: '¡Pago confirmado! Agendá tu sesión con Diego',
@@ -351,7 +381,7 @@ export class EmailService {
         Diego se va a poner en contacto en las próximas 24 horas para coordinar los detalles del programa.
       </p>`;
 
-    await this.transporter.sendMail({
+    await this.send({
       from:    this.from,
       to:      data.to,
       subject: 'Pago confirmado — agendá tus sesiones',
@@ -374,7 +404,7 @@ export class EmailService {
         Diego se va a poner en contacto para coordinar la entrega de tu libro.
       </p>`;
 
-    await this.transporter.sendMail({
+    await this.send({
       from:    this.from,
       to:      data.to,
       subject: 'Compra confirmada — Despertá y avanzá, ¡Carajo!',
