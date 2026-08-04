@@ -6,17 +6,16 @@ vi.mock('next/link', () => ({
   default: ({ children, href }: any) => <a href={href}>{children}</a>,
 }))
 
+vi.mock('next/script', () => ({
+  default: () => null,
+}))
+
 import LibroCompra from '../LibroCompra'
 
 describe('LibroCompra', () => {
   beforeEach(() => {
     global.fetch = vi.fn()
     process.env.NEXT_PUBLIC_API_URL = 'http://api.test'
-    // jsdom no implementa navegación real — se reemplaza window.location por un
-    // objeto simple y escribible para poder verificar la asignación de .href.
-    delete (window as any).location
-    // @ts-expect-error -- objeto mínimo, no necesita el resto de la interfaz Location
-    window.location = { href: '' }
   })
 
   it('renderiza el formulario con campos de email y nombre', () => {
@@ -121,19 +120,22 @@ describe('LibroCompra', () => {
     expect(await screen.findByText(/no pudimos iniciar el pago/i)).toBeInTheDocument()
   })
 
-  it('si la API retorna processId → redirige al checkout de Bancard', async () => {
+  it('si la API retorna processId → oculta el formulario y muestra el contenedor del iframe de Bancard', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({ processId: '99900001' }),
     } as Response)
 
     const user = userEvent.setup()
-    render(<LibroCompra />)
+    const { container } = render(<LibroCompra />)
 
     await user.type(screen.getByPlaceholderText('Nombre completo'), 'Juan Pérez')
     await user.type(screen.getByPlaceholderText('Tu email'), 'juan@test.com')
     await user.click(screen.getByRole('button', { name: /comprar ahora/i }))
 
-    await waitFor(() => expect(window.location.href).toContain('99900001'))
+    await waitFor(() =>
+      expect(container.querySelector('#libro-bancard-checkout-container')).toBeInTheDocument(),
+    )
+    expect(screen.queryByPlaceholderText('Tu email')).not.toBeInTheDocument()
   })
 })
