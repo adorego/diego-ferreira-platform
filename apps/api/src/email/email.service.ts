@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
 
 // ─── Helpers HTML ────────────────────────────────────────────────────────────
 
@@ -66,6 +66,9 @@ function baseTemplate(content: string): string {
             <td style="background:#f8f8f8;padding:20px 32px;border-top:1px solid #eeeeee;">
               <p style="margin:0;font-size:12px;color:#999999;text-align:center;">
                 © 2025 Diego Ferreira · Todos los derechos reservados<br/>
+                <span style="font-size:11px;">
+                  Contacto: <a href="mailto:diego@diegoferreira.coach" style="color:#999999;">diego@diegoferreira.coach</a>
+                </span><br/>
                 <span style="font-size:11px;">Si no solicitaste este email, podés ignorarlo.</span>
               </p>
             </td>
@@ -83,18 +86,26 @@ function baseTemplate(content: string): string {
 
 @Injectable()
 export class EmailService {
-  private _resend: Resend | null = null;
-  private from = 'Diego Ferreira <noreply@diegoferreira.org>';
+  private _transporter: nodemailer.Transporter | null = null;
+  private from = '"Diego Ferreira" <diego@diegoferreira.coach>';
 
   constructor(private cfg: ConfigService) {}
 
-  /** Lazy init — evita crash al arrancar si RESEND_API_KEY no está configurado */
-  private get resend(): Resend {
-    if (!this._resend) {
-      const key = this.cfg.get<string>('RESEND_API_KEY') ?? 're_placeholder';
-      this._resend = new Resend(key);
+  /** Lazy init — evita crash al arrancar si las credenciales de Gmail no están configuradas */
+  private get transporter(): nodemailer.Transporter {
+    if (!this._transporter) {
+      this._transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          type:         'OAuth2',
+          user:         'diego@diegoferreira.coach',
+          clientId:     this.cfg.get<string>('GMAIL_CLIENT_ID'),
+          clientSecret: this.cfg.get<string>('GMAIL_CLIENT_SECRET'),
+          refreshToken: this.cfg.get<string>('GMAIL_REFRESH_TOKEN'),
+        },
+      });
     }
-    return this._resend;
+    return this._transporter;
   }
 
   // ── Nueva sesión agendada (notificación a Diego) ──────────────────────────
@@ -133,7 +144,7 @@ export class EmailService {
       </table>
       ${btn('Ver en el dashboard', adminUrl, '#00727A')}`;
 
-    await this.resend.emails.send({
+    await this.transporter.sendMail({
       from:    this.from,
       to:      this.cfg.get<string>('DIEGO_EMAIL')!,
       subject: `Nueva sesión: ${data.patientName}`,
@@ -150,21 +161,36 @@ export class EmailService {
     price: string;
     currency: string;
     sessions?: number;
+    planLabel?: string;
+    sessionDate?: string;
   }) {
     const sessionsLine = data.sessions
       ? `<p style="margin:8px 0 0;font-size:14px;color:#444444;">
            Sesiones incluidas: <strong>${data.sessions}</strong>
          </p>`
       : '';
+    const planLine = data.planLabel
+      ? `<p style="margin:0 0 16px;font-size:15px;color:#444444;">
+           Programa: <strong>${data.planLabel}</strong>
+         </p>`
+      : '';
+    const dateBlock = data.sessionDate
+      ? `<div style="background:#f9f9f9;border-radius:10px;padding:16px 24px;margin-bottom:16px;">
+           <p style="margin:0;font-size:13px;color:#888888;">Primera sesión</p>
+           <p style="margin:4px 0 0;font-size:15px;font-weight:700;color:#111111;">${data.sessionDate}</p>
+         </div>`
+      : '';
 
     const content = `
       <h2 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#111111;">
-        ¡Tu solicitud fue aprobada! 🎉
+        Tu programa está confirmado ✓
       </h2>
-      <p style="margin:0 0 24px;font-size:15px;color:#444444;line-height:1.6;">
+      <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
         Hola <strong>${data.name}</strong>, tu solicitud para el programa de coaching
         fue aprobada. El siguiente paso es completar el pago para reservar tu lugar.
       </p>
+      ${planLine}
+      ${dateBlock}
       <div style="background:#f9f9f9;border-radius:10px;padding:20px 24px;margin-bottom:24px;">
         <p style="margin:0;font-size:16px;font-weight:700;color:#111111;">
           ${data.currency} ${data.price}
@@ -178,12 +204,12 @@ export class EmailService {
           Completá el pago antes de que venza para asegurar tu lugar.
         </p>
       </div>
-      ${btn('Completar pago', data.paymentUrl)}`;
+      ${btn('Completar pago →', data.paymentUrl)}`;
 
-    await this.resend.emails.send({
+    await this.transporter.sendMail({
       from:    this.from,
       to:      data.to,
-      subject: 'Tu solicitud fue aprobada — completá tu pago',
+      subject: 'Tu programa con Diego Ferreira está confirmado ✓',
       html:    baseTemplate(content),
     });
   }
@@ -201,7 +227,7 @@ export class EmailService {
         querés más información, respondé este email.
       </p>`;
 
-    await this.resend.emails.send({
+    await this.transporter.sendMail({
       from:    this.from,
       to:      data.to,
       subject: 'Novedades sobre tu solicitud',
@@ -243,7 +269,7 @@ export class EmailService {
         Si necesitás cancelar o reagendar, contactá a Diego con al menos 24 hs de anticipación.
       </p>`;
 
-    await this.resend.emails.send({
+    await this.transporter.sendMail({
       from:    this.from,
       to:      data.to,
       subject,
@@ -282,7 +308,7 @@ export class EmailService {
         Diego se va a poner en contacto en las próximas 24 horas para coordinar los detalles del programa.
       </p>`;
 
-    await this.resend.emails.send({
+    await this.transporter.sendMail({
       from:    this.from,
       to:      data.to,
       subject: 'Pago confirmado — agendá tus sesiones',
@@ -305,7 +331,7 @@ export class EmailService {
         Diego se va a poner en contacto para coordinar la entrega de tu libro.
       </p>`;
 
-    await this.resend.emails.send({
+    await this.transporter.sendMail({
       from:    this.from,
       to:      data.to,
       subject: 'Compra confirmada — Despertá y avanzá, ¡Carajo!',

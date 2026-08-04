@@ -1,4 +1,4 @@
-const mockResendSend = jest.fn().mockResolvedValue({ id: 'test-id' });
+const mockSendMail = jest.fn().mockResolvedValue({ messageId: 'test-id' });
 
 jest.mock('@react-email/render', () => ({
   render: jest.fn().mockResolvedValue('<html>test</html>'),
@@ -8,9 +8,9 @@ jest.mock('@df/emails', () => ({
   SessionBookedEmail: jest.fn().mockReturnValue(null),
 }));
 
-jest.mock('resend', () => ({
-  Resend: jest.fn().mockImplementation(() => ({
-    emails: { send: mockResendSend },
+jest.mock('nodemailer', () => ({
+  createTransport: jest.fn().mockImplementation(() => ({
+    sendMail: mockSendMail,
   })),
 }));
 
@@ -22,14 +22,16 @@ describe('EmailService', () => {
   let service: EmailService;
 
   const cfgValues: Record<string, string> = {
-    RESEND_API_KEY: 're_test',
-    DIEGO_EMAIL:    'diego@test.com',
-    ADMIN_URL:      'http://admin.test',
-    FRONTEND_URL:   'http://frontend.test',
+    GMAIL_CLIENT_ID:     'client-id-test',
+    GMAIL_CLIENT_SECRET: 'client-secret-test',
+    GMAIL_REFRESH_TOKEN: 'refresh-token-test',
+    DIEGO_EMAIL:         'diego@test.com',
+    ADMIN_URL:           'http://admin.test',
+    FRONTEND_URL:        'http://frontend.test',
   };
 
   beforeEach(async () => {
-    mockResendSend.mockClear();
+    mockSendMail.mockClear();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -41,28 +43,48 @@ describe('EmailService', () => {
     service = module.get<EmailService>(EmailService);
   });
 
-  it('sendSessionBooked() llama resend con subject que contiene el nombre del paciente', async () => {
+  it('sendSessionBooked() llama sendMail con subject que contiene el nombre del paciente', async () => {
     await service.sendSessionBooked({
       patientName:  'Juan Pérez',
       patientEmail: 'juan@test.com',
       sessionDate:  '01/06/2026',
     });
 
-    expect(mockResendSend).toHaveBeenCalledWith(
+    expect(mockSendMail).toHaveBeenCalledWith(
       expect.objectContaining({ subject: expect.stringContaining('Juan Pérez') }),
     );
   });
 
-  it('sendApproval() llama resend con el to correcto y el link de pago en el html', async () => {
+  it('sendApproval() llama sendMail con el to correcto y el link de pago en el html', async () => {
     await service.sendApproval({
       to: 'patient@test.com', name: 'Juan',
       paymentUrl: 'http://pay.test/xyz', price: '100', currency: 'PYG',
     });
 
-    expect(mockResendSend).toHaveBeenCalledWith(
+    expect(mockSendMail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'patient@test.com',
+        subject: expect.stringContaining('confirmado'),
         html: expect.stringContaining('http://pay.test/xyz'),
+      }),
+    );
+  });
+
+  it('sendApproval() con planLabel y sessionDate → los incluye en el html', async () => {
+    await service.sendApproval({
+      to: 'patient@test.com', name: 'Juan',
+      paymentUrl: 'http://pay.test/xyz', price: '100', currency: 'PYG',
+      planLabel: 'Programa de coaching', sessionDate: '10 de agosto, 13:00',
+    });
+
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining('Programa de coaching'),
+      }),
+    );
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining('10 de agosto, 13:00'),
       }),
     );
   });
@@ -74,7 +96,7 @@ describe('EmailService', () => {
       hoursUntil: 1,
     });
 
-    expect(mockResendSend).toHaveBeenCalledWith(
+    expect(mockSendMail).toHaveBeenCalledWith(
       expect.objectContaining({
         subject: expect.stringContaining('1 hora'),
         html: expect.stringContaining('https://meet.test/abc'),
@@ -89,17 +111,17 @@ describe('EmailService', () => {
       hoursUntil: 24,
     });
 
-    expect(mockResendSend).toHaveBeenCalledWith(
+    expect(mockSendMail).toHaveBeenCalledWith(
       expect.objectContaining({ subject: expect.stringContaining('mañana') }),
     );
   });
 
-  it('sendWelcomeAfterPayment() llama resend con el to y el nombre del paciente en el html', async () => {
+  it('sendWelcomeAfterPayment() llama sendMail con el to y el nombre del paciente en el html', async () => {
     await service.sendWelcomeAfterPayment({
       to: 'p@test.com', name: 'Juan Pérez', calendarUrl: 'http://cal.test',
     });
 
-    expect(mockResendSend).toHaveBeenCalledWith(
+    expect(mockSendMail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'p@test.com',
         html: expect.stringContaining('Juan Pérez'),
@@ -107,27 +129,39 @@ describe('EmailService', () => {
     );
   });
 
-  it('sendBookPurchaseConfirmation() llama resend con el to correcto', async () => {
+  it('sendRejection() llama sendMail con el to y el nombre del paciente en el html', async () => {
+    await service.sendRejection({ to: 'p@test.com', name: 'Juan Pérez' });
+
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'p@test.com',
+        html: expect.stringContaining('Juan Pérez'),
+      }),
+    );
+  });
+
+  it('sendBookPurchaseConfirmation() llama sendMail con el to correcto', async () => {
     await service.sendBookPurchaseConfirmation({ to: 'lector@test.com' });
 
-    expect(mockResendSend).toHaveBeenCalledWith(
+    expect(mockSendMail).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'lector@test.com' }),
     );
   });
 
   // BUG REAL (no corregido, solo documentado): ningún método de EmailService envuelve
-  // `this.resend.emails.send(...)` en try/catch. Si Resend falla o rechaza, el error se
-  // propaga sin controlar hacia quien haya llamado al método — y ninguno de los
-  // callers reales (PaymentsService.handleWebhook, PatientsService.admitPatient,
-  // RemindersService.sendReminders) lo captura tampoco. Una caída de Resend puede
+  // `this.transporter.sendMail(...)` en try/catch. Si Gmail SMTP falla o rechaza
+  // (token expirado, límite de envío, etc.), el error se propaga sin controlar hacia
+  // quien haya llamado al método — y ninguno de los callers reales
+  // (PaymentsService.handleWebhook, PatientsService.admitPatient/rejectSession,
+  // RemindersService.sendReminders) lo captura tampoco. Una caída del SMTP puede
   // tumbar un webhook de pago o el cron de recordatorios completo.
-  it('si Resend falla → el error se propaga sin capturar (no hay try/catch)', async () => {
-    mockResendSend.mockRejectedValueOnce(new Error('Resend API unavailable'));
+  it('si el envío falla → el error se propaga sin capturar (no hay try/catch)', async () => {
+    mockSendMail.mockRejectedValueOnce(new Error('SMTP unavailable'));
 
     await expect(
       service.sendSessionBooked({
         patientName: 'Juan', patientEmail: 'juan@test.com', sessionDate: '01/06/2026',
       }),
-    ).rejects.toThrow('Resend API unavailable');
+    ).rejects.toThrow('SMTP unavailable');
   });
 });
