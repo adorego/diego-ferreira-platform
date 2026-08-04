@@ -19,10 +19,10 @@ export default function LibroCompra() {
   const [error, setError]     = React.useState('')
   const [loading, setLoading] = React.useState(false)
 
-  const isProduction = process.env.NODE_ENV === 'production'
-  const bancardBase  = isProduction
-    ? 'https://vpos.infonet.com.py'
-    : 'https://vpos.infonet.com.py:8888'
+  // NEXT_PUBLIC_BANCARD_BASE_URL debe estar seteada en apps/web/.env.local (local)
+  // y en Railway → @df/web → Variables (staging/prod), con el valor
+  // https://vpos.infonet.com.py — confirmado en pruebas de staging.
+  const bancardBase = process.env.NEXT_PUBLIC_BANCARD_BASE_URL ?? 'https://vpos.infonet.com.py'
 
   async function handleComprar() {
     setError('')
@@ -49,10 +49,9 @@ export default function LibroCompra() {
         return
       }
       // Redirige al checkout hosteado de Bancard (VPOS 2.0).
-      // TODO: confirmar en staging que /checkout/new/{process_id} es la ruta correcta
-      // antes de ir a producción — el resto del proyecto usa el widget embebido
-      // (Bancard.Checkout.createForm) en vez de este redirect de página completa.
-      window.location.href = `${bancardBase}/checkout/new/${data.processId}`
+      // /checkout/new/{process_id} daba 404 en Bancard — confirmado en pruebas de
+      // staging. La ruta correcta es /vpos/single_buy?process_id=.
+      window.location.href = `${bancardBase}/vpos/single_buy?process_id=${data.processId}`
     } catch {
       setError('Error de conexión. Probá de nuevo en unos minutos.')
       setLoading(false)

@@ -1,18 +1,32 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Session, Patient } from '@df/types';
 
 export default function DashboardPacientes() {
   const API = process.env.NEXT_PUBLIC_API_URL;  // no hardcodear localhost
+  const router = useRouter();
   const [sessions, setSessions]   = useState<Session[]>([]);
   const [admitOpen, setAdmitOpen] = useState(false);
   const [admitSession, setAdmitSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    fetch(`${API}/patients/sessions`, { credentials:'include' })
-      .then(r => r.json())
-      .then(setSessions);
-  }, []);
+    fetch(`${API}/patients/sessions`, { credentials: 'include' })
+      .then(res => {
+        if (res.status === 401) {
+          router.push('/login');
+          return null;
+        }
+        if (!res.ok) {
+          console.error('Error fetching sessions:', res.status);
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data) setSessions(data);
+      });
+  }, [API, router]);
 
   // ✅ FIX #1: usa los datos reales del paciente, no hardcodeados
   async function admitPatient(
