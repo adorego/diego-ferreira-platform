@@ -10,6 +10,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { HealthModule } from './health/health.module';
 import { CmsModule } from './cms/cms.module';
+import { SchedulingModule } from './scheduling/scheduling.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { CmsModule } from './cms/cms.module';
     RemindersModule,
     HealthModule,
     CmsModule,
+    SchedulingModule,
   ],
 })
 export class AppModule {}
