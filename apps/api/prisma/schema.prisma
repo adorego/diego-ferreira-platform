@@ -21,22 +21,41 @@ model User {
 }
 
 model Session {
-  id           Int        @id @default(autoincrement())
-  patientId    Int
-  patient      User       @relation(fields:[patientId], references:[id])
-  type         SessionType
-  status       AppStatus  @default(PENDING)
-  start        DateTime?
-  end          DateTime?
-  roomUrl      String?
-  gcalEventId  String?
-  recordingUrl String?
-  reminderSent Boolean    @default(false)
-  price        Float?
-  paymentId    String?
-  payment      Payment?   @relation(fields:[paymentId], references:[id])
-  summary      SessionSummary?
-  createdAt    DateTime   @default(now())
+  id              Int        @id @default(autoincrement())
+  patientId       Int
+  patient         User       @relation(fields:[patientId], references:[id])
+  type            SessionType
+  status          AppStatus  @default(PENDING)
+  start           DateTime?
+  end             DateTime?
+  roomUrl         String?
+  gcalEventId     String?
+  recordingUrl    String?
+  reminderSent    Boolean    @default(false)
+  price           Float?
+  paymentId       String?
+  payment         Payment?   @relation(fields:[paymentId], references:[id])
+  summary         SessionSummary?
+  schedulingToken String?
+  // No estaba en el schema pedido, pero sin persistir esto en algún lado el
+  // webhook no tiene de dónde sacar "totalSessions" para el JWT de agendamiento —
+  // admitPatient() solo usaba dto.sessions de forma transitoria (precio/email),
+  // nunca lo guardaba. Ver patients.service.ts.
+  totalSessions   Int        @default(1)
+  bookings        SessionBooking[]
+  createdAt       DateTime   @default(now())
+}
+
+model SessionBooking {
+  id            Int      @id @default(autoincrement())
+  sessionId     Int
+  session       Session  @relation(fields: [sessionId], references: [id])
+  googleEventId String
+  meetLink      String?
+  start         DateTime
+  end           DateTime
+  type          String
+  createdAt     DateTime @default(now())
 }
 
 model SessionSummary {
@@ -95,6 +114,7 @@ enum SessionType {
 enum AppStatus {
   PENDING
   CONFIRMED
+  PAID
   COMPLETED
   CANCELLED
 }
