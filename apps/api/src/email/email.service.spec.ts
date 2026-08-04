@@ -1,4 +1,4 @@
-const mockSendMail = jest.fn().mockResolvedValue({ messageId: 'test-id' });
+const mockGmailSend = jest.fn().mockResolvedValue({ data: { id: 'test-id' } });
 
 jest.mock('@react-email/render', () => ({
   render: jest.fn().mockResolvedValue('<html>test</html>'),
@@ -8,15 +8,42 @@ jest.mock('@df/emails', () => ({
   SessionBookedEmail: jest.fn().mockReturnValue(null),
 }));
 
-jest.mock('nodemailer', () => ({
-  createTransport: jest.fn().mockImplementation(() => ({
-    sendMail: mockSendMail,
-  })),
+// Mismo patrón de mock que calendar.service.spec.ts para googleapis.
+jest.mock('googleapis', () => ({
+  google: {
+    auth: {
+      OAuth2: jest.fn().mockImplementation(() => ({
+        setCredentials: jest.fn(),
+      })),
+    },
+    gmail: jest.fn().mockReturnValue({
+      users: { messages: { send: mockGmailSend } },
+    }),
+  },
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from './email.service';
+
+// gmail.users.messages.send() recibe { userId, requestBody: { raw } } — raw es el
+// mensaje RFC 2822 completo en base64url, con el Subject a su vez codificado como
+// MIME encoded-word (RFC 2047). Este helper deshace ambas capas para poder seguir
+// afirmando sobre to/subject/html en texto plano, como antes con nodemailer.
+function decodeSentMessage(callArgs: any): { to: string; from: string; subject: string; html: string } {
+  const raw: string = callArgs.requestBody.raw;
+  const base64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+  const message = Buffer.from(base64, 'base64').toString('utf-8');
+
+  const to      = /^To: (.*)$/m.exec(message)?.[1] ?? '';
+  const from    = /^From: (.*)$/m.exec(message)?.[1] ?? '';
+  const rawSubject = /^Subject: (.*)$/m.exec(message)?.[1] ?? '';
+  const encodedMatch = /^=\?UTF-8\?B\?(.*)\?=$/.exec(rawSubject);
+  const subject = encodedMatch ? Buffer.from(encodedMatch[1], 'base64').toString('utf-8') : rawSubject;
+  const html = message.split('\n\n').slice(1).join('\n\n');
+
+  return { to, from, subject, html };
+}
 
 describe('EmailService', () => {
   let service: EmailService;
@@ -31,7 +58,8 @@ describe('EmailService', () => {
   };
 
   beforeEach(async () => {
-    mockSendMail.mockClear();
+    mockGmailSend.mockClear();
+    mockGmailSend.mockResolvedValue({ data: { id: 'test-id' } });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -43,31 +71,27 @@ describe('EmailService', () => {
     service = module.get<EmailService>(EmailService);
   });
 
-  it('sendSessionBooked() llama sendMail con subject que contiene el nombre del paciente', async () => {
+  it('sendSessionBooked() manda un subject que contiene el nombre del paciente', async () => {
     await service.sendSessionBooked({
       patientName:  'Juan Pérez',
       patientEmail: 'juan@test.com',
       sessionDate:  '01/06/2026',
     });
 
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({ subject: expect.stringContaining('Juan Pérez') }),
-    );
+    const sent = decodeSentMessage(mockGmailSend.mock.calls[0][0]);
+    expect(sent.subject).toContain('Juan Pérez');
   });
 
-  it('sendApproval() llama sendMail con el to correcto y el link de pago en el html', async () => {
+  it('sendApproval() manda al destinatario correcto con el link de pago en el html', async () => {
     await service.sendApproval({
       to: 'patient@test.com', name: 'Juan',
       paymentUrl: 'http://pay.test/xyz', price: '100', currency: 'PYG',
     });
 
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: 'patient@test.com',
-        subject: expect.stringContaining('confirmado'),
-        html: expect.stringContaining('http://pay.test/xyz'),
-      }),
-    );
+    const sent = decodeSentMessage(mockGmailSend.mock.calls[0][0]);
+    expect(sent.to).toBe('patient@test.com');
+    expect(sent.subject).toContain('confirmado');
+    expect(sent.html).toContain('http://pay.test/xyz');
   });
 
   it('sendApproval() con planLabel y sessionDate → los incluye en el html', async () => {
@@ -77,16 +101,9 @@ describe('EmailService', () => {
       planLabel: 'Programa de coaching', sessionDate: '10 de agosto, 13:00',
     });
 
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        html: expect.stringContaining('Programa de coaching'),
-      }),
-    );
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        html: expect.stringContaining('10 de agosto, 13:00'),
-      }),
-    );
+    const sent = decodeSentMessage(mockGmailSend.mock.calls[0][0]);
+    expect(sent.html).toContain('Programa de coaching');
+    expect(sent.html).toContain('10 de agosto, 13:00');
   });
 
   it('sendReminder() con hoursUntil=1 → subject contiene "1 hora" y el html tiene el meetLink', async () => {
@@ -96,12 +113,9 @@ describe('EmailService', () => {
       hoursUntil: 1,
     });
 
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        subject: expect.stringContaining('1 hora'),
-        html: expect.stringContaining('https://meet.test/abc'),
-      }),
-    );
+    const sent = decodeSentMessage(mockGmailSend.mock.calls[0][0]);
+    expect(sent.subject).toContain('1 hora');
+    expect(sent.html).toContain('https://meet.test/abc');
   });
 
   it('sendReminder() con hoursUntil=24 → subject contiene "mañana"', async () => {
@@ -111,51 +125,43 @@ describe('EmailService', () => {
       hoursUntil: 24,
     });
 
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({ subject: expect.stringContaining('mañana') }),
-    );
+    const sent = decodeSentMessage(mockGmailSend.mock.calls[0][0]);
+    expect(sent.subject).toContain('mañana');
   });
 
-  it('sendWelcomeAfterPayment() llama sendMail con el to y el nombre del paciente en el html', async () => {
+  it('sendWelcomeAfterPayment() manda al destinatario correcto con el nombre del paciente en el html', async () => {
     await service.sendWelcomeAfterPayment({
       to: 'p@test.com', name: 'Juan Pérez', calendarUrl: 'http://cal.test',
     });
 
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: 'p@test.com',
-        html: expect.stringContaining('Juan Pérez'),
-      }),
-    );
+    const sent = decodeSentMessage(mockGmailSend.mock.calls[0][0]);
+    expect(sent.to).toBe('p@test.com');
+    expect(sent.html).toContain('Juan Pérez');
   });
 
-  it('sendRejection() llama sendMail con el to y el nombre del paciente en el html', async () => {
+  it('sendRejection() manda al destinatario correcto con el nombre del paciente en el html', async () => {
     await service.sendRejection({ to: 'p@test.com', name: 'Juan Pérez' });
 
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: 'p@test.com',
-        html: expect.stringContaining('Juan Pérez'),
-      }),
-    );
+    const sent = decodeSentMessage(mockGmailSend.mock.calls[0][0]);
+    expect(sent.to).toBe('p@test.com');
+    expect(sent.html).toContain('Juan Pérez');
   });
 
-  it('sendBookPurchaseConfirmation() llama sendMail con el to correcto', async () => {
+  it('sendBookPurchaseConfirmation() manda al destinatario correcto', async () => {
     await service.sendBookPurchaseConfirmation({ to: 'lector@test.com' });
 
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'lector@test.com' }),
-    );
+    const sent = decodeSentMessage(mockGmailSend.mock.calls[0][0]);
+    expect(sent.to).toBe('lector@test.com');
   });
 
-  // Ya no es un bug: EmailService.send() envuelve todo sendMail en Promise.race +
-  // catch sin relanzar, precisamente para que una caída de Gmail SMTP no tumbe el
-  // webhook de pago ni el cron de recordatorios (los callers reales —
+  // EmailService.send() envuelve todo gmail.users.messages.send() en Promise.race +
+  // catch sin relanzar, precisamente para que una caída de la API de Gmail no tumbe
+  // el webhook de pago ni el cron de recordatorios (los callers reales —
   // PaymentsService.handleWebhook, PatientsService.admitPatient/rejectSession,
   // RemindersService.sendReminders— siguen sin tener su propio try/catch, pero ya
   // no lo necesitan).
   it('si el envío falla → NO se propaga (el negocio sigue aunque el email falle)', async () => {
-    mockSendMail.mockRejectedValueOnce(new Error('SMTP unavailable'));
+    mockGmailSend.mockRejectedValueOnce(new Error('Gmail API unavailable'));
 
     await expect(
       service.sendSessionBooked({
@@ -166,7 +172,7 @@ describe('EmailService', () => {
 
   it('si el envío tarda más de 10s → corta por timeout y no cuelga el caller', async () => {
     jest.useFakeTimers();
-    mockSendMail.mockReturnValueOnce(new Promise(() => {})); // nunca resuelve
+    mockGmailSend.mockReturnValueOnce(new Promise(() => {})); // nunca resuelve
 
     const pending = service.sendSessionBooked({
       patientName: 'Juan', patientEmail: 'juan@test.com', sessionDate: '01/06/2026',

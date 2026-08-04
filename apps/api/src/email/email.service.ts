@@ -1,6 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import { google } from 'googleapis';
+
+interface MailOptions {
+  from:    string;
+  to:      string;
+  subject: string;
+  html:    string;
+}
 
 // ─── Helpers HTML ────────────────────────────────────────────────────────────
 
@@ -89,39 +96,32 @@ const SEND_TIMEOUT_MS = 10_000;
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private _transporter: nodemailer.Transporter | null = null;
   private from = '"Diego Ferreira" <diego@diegoferreira.coach>';
 
   constructor(private cfg: ConfigService) {}
 
-  /** Lazy init — evita crash al arrancar si las credenciales de Gmail no están configuradas */
-  private get transporter(): nodemailer.Transporter {
-    if (!this._transporter) {
-      this._transporter = nodemailer.createTransport({
-        // service:'gmail' resuelve smtp.gmail.com:465 (SSL implícito) y en Railway
-        // esa resolución prefería IPv6, que no tiene salida ahí — ENETUNREACH/ESOCKET.
-        // host/port explícitos con STARTTLS en 587 evita la resolución de 'service'.
-        host:   'smtp.gmail.com',
-        port:   587,
-        secure: false,
-        auth: {
-          type:         'OAuth2',
-          user:         'diego@diegoferreira.coach',
-          clientId:     this.cfg.get<string>('GMAIL_CLIENT_ID'),
-          clientSecret: this.cfg.get<string>('GMAIL_CLIENT_SECRET'),
-          refreshToken: this.cfg.get<string>('GMAIL_REFRESH_TOKEN'),
-        },
-      });
-    }
-    return this._transporter;
+  // SMTP (puertos 465/587) sale bloqueado en Railway — el email quedaba en timeout
+  // en todos los envíos sin importar el puerto. Gmail API vía HTTPS (443) esquiva el
+  // bloqueo por completo. Mismo patrón que CalendarService para Google Calendar
+  // (que ya funciona en este mismo proyecto/Railway): OAuth2 con refresh_token, sin
+  // access_token fijo — la librería lo renueva sola.
+  private getGmailClient() {
+    const auth = new google.auth.OAuth2(
+      this.cfg.get('GMAIL_CLIENT_ID'),
+      this.cfg.get('GMAIL_CLIENT_SECRET'),
+    );
+    auth.setCredentials({
+      refresh_token: this.cfg.get('GMAIL_REFRESH_TOKEN'),
+    });
+    return google.gmail({ version: 'v1', auth });
   }
 
-  // Todo el envío pasa por acá en vez de llamar transporter.sendMail directo en cada
-  // método — Promise.race con timeout + catch-sin-relanzar una sola vez, no repetido
-  // 7 veces. Antes un email colgado (SMTP sin responder) podía trabar el webhook de
-  // pago o el cron de recordatorios completo; ahora el negocio sigue aunque el email
-  // falle o tarde más de 10s — el error queda solo logueado.
-  private async send(mailOptions: nodemailer.SendMailOptions): Promise<void> {
+  // Todo el envío pasa por acá en vez de armar el mensaje RFC 2822 en cada método —
+  // Promise.race con timeout + catch-sin-relanzar una sola vez, no repetido 7 veces.
+  // Antes un email colgado podía trabar el webhook de pago o el cron de recordatorios
+  // completo; ahora el negocio sigue aunque el email falle o tarde más de 10s — el
+  // error queda solo logueado.
+  private async send(mailOptions: MailOptions): Promise<void> {
     // El setTimeout se limpia con .finally() sin importar quién gane la carrera —
     // si no, cada envío exitoso deja un timer de 10s colgado hasta que dispara solo
     // (inofensivo en producción, pero deja handles abiertos en los tests).
@@ -130,7 +130,35 @@ export class EmailService {
       timeoutId = setTimeout(() => reject(new Error('Email timeout')), SEND_TIMEOUT_MS);
     });
 
-    await Promise.race([this.transporter.sendMail(mailOptions), timeout])
+    // El Subject se codifica como MIME encoded-word (RFC 2047) — varios asuntos de
+    // este archivo tienen tildes/símbolos ("...está confirmado ✓", "¡Pago...") y un
+    // header RFC 2822 con UTF-8 crudo no es válido, más allá de que el mensaje
+    // completo viaje en base64 hacia la API (esa es una capa de transporte distinta,
+    // no reemplaza el encoding que necesita el header en sí).
+    const encodedSubject = `=?UTF-8?B?${Buffer.from(mailOptions.subject).toString('base64')}?=`;
+
+    const message = [
+      `To: ${mailOptions.to}`,
+      `From: ${mailOptions.from}`,
+      `Subject: ${encodedSubject}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/html; charset=utf-8`,
+      ``,
+      mailOptions.html,
+    ].join('\n');
+
+    const raw = Buffer.from(message)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    const gmailSend = this.getGmailClient().users.messages.send({
+      userId: 'me',
+      requestBody: { raw },
+    });
+
+    await Promise.race([gmailSend, timeout])
       .finally(() => clearTimeout(timeoutId))
       .catch(err => {
         this.logger.error(`Error enviando email a ${String(mailOptions.to)}: ${err.message}`);
