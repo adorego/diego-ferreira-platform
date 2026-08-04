@@ -50,6 +50,7 @@ export interface Session {
   recordingUrl?: string;
   aiSummary?:    string;
   meetLink?:     string;
+  price?:        number;
   patient:       Patient;
 }
 
