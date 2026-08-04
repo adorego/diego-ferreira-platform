@@ -42,23 +42,41 @@ export class PatientsService {
     return this.prisma.user.create({ data });
   }
 
+  private static readonly PLAN_LABEL: Record<string, string> = {
+    EXPLORATORY: 'Sesión exploratoria',
+    PLAN:        'Programa de coaching',
+  };
+
+  // Antes buscaba al paciente por email y solo actualizaba User.status — la Session
+  // puntual que se estaba aprobando nunca cambiaba de PENDING, así que volvía a
+  // aparecer como pendiente después de refrescar el dashboard. Ahora opera sobre un
+  // sessionId concreto (el dashboard ya lo tiene disponible) y actualiza ambos.
   async admitPatient(dto: {
-    email: string; name: string;
+    sessionId: number;
     price: string; sessions: number; currency: string;
   }) {
-    const patient = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const session = await this.prisma.session.findUnique({
+      where:   { id: dto.sessionId },
+      include: { patient: true },
     });
-    if (!patient) throw new NotFoundException();
+    if (!session) throw new NotFoundException('Sesión no encontrada');
 
     await this.prisma.user.update({
-      where: { id: patient.id },
+      where: { id: session.patient.id },
       data:  { status: 'APPROVED' },
     });
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data:  { status: 'CONFIRMED' },
+    });
 
-    // JWT de un solo uso (48h) para el link de pago
+    // JWT de un solo uso (48h) para el link de pago. Antes solo llevaba patientId —
+    // POST /payments/create-link lee amount/currency del propio payload del JWT
+    // (payload.amount ?? 1300, payload.currency ?? 'USD'), así que sin esto el
+    // paciente terminaba pagando el fallback hardcodeado en vez del monto real que
+    // Diego cargó en el AdmitDialog, sin ninguna relación con lo que decía el email.
     const token = jwt.sign(
-      { patientId: patient.id },
+      { patientId: session.patient.id, amount: Number(dto.price), currency: dto.currency },
       this.cfg.get('JWT_SECRET')!,
       { expiresIn: '48h' },
     );
@@ -66,8 +84,13 @@ export class PatientsService {
       `${this.cfg.get('FRONTEND_URL')}/pago?token=${token}`;
 
     await this.email.sendApproval({
-      to: patient.email, name: patient.name,
+      to: session.patient.email, name: session.patient.name,
       paymentUrl, price: dto.price, currency: dto.currency,
+      sessions:    dto.sessions,
+      planLabel:   PatientsService.PLAN_LABEL[session.type] ?? session.type,
+      sessionDate: session.start
+        ? session.start.toLocaleString('es-PY', { dateStyle: 'long', timeStyle: 'short' })
+        : undefined,
     });
 
     return { ok: true, paymentUrl };

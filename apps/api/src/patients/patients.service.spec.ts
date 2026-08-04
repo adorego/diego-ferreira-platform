@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as jwt from 'jsonwebtoken';
 import { PatientsService } from './patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
@@ -19,20 +20,32 @@ const mockPatient = {
   payments: [],
 };
 
+const mockSession = {
+  id: 10, patientId: 1, type: 'PLAN', status: 'PENDING',
+  start: new Date('2026-06-01T10:00:00.000Z'), end: null,
+  roomUrl: null, gcalEventId: null, recordingUrl: null,
+  reminderSent: false, price: null, paymentId: null,
+  createdAt: new Date('2026-05-01'),
+  patient: mockPatient,
+};
+
 describe('PatientsService', () => {
   let service: PatientsService;
   let prismaMock: {
     user:    { findUnique: jest.Mock; count: jest.Mock; update: jest.Mock };
-    session: { findMany: jest.Mock };
+    session: { findMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
   };
-  let emailMock: { sendApproval: jest.Mock };
+  let emailMock: { sendApproval: jest.Mock; sendRejection: jest.Mock };
 
   beforeEach(async () => {
     prismaMock = {
       user:    { findUnique: jest.fn(), count: jest.fn(), update: jest.fn() },
-      session: { findMany: jest.fn() },
+      session: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     };
-    emailMock = { sendApproval: jest.fn().mockResolvedValue(undefined) };
+    emailMock = {
+      sendApproval:  jest.fn().mockResolvedValue(undefined),
+      sendRejection: jest.fn().mockResolvedValue(undefined),
+    };
 
     const cfgValues: Record<string, string> = {
       JWT_SECRET:    'secret',
@@ -106,42 +119,60 @@ describe('PatientsService', () => {
   });
 
   describe('admitPatient()', () => {
-    it('cambia status a APPROVED y llama emailService.sendApproval', async () => {
-      prismaMock.user.findUnique.mockResolvedValue(mockPatient);
+    it('cambia User.status a APPROVED, Session.status a CONFIRMED, y llama emailService.sendApproval con plan/fecha', async () => {
+      prismaMock.session.findUnique.mockResolvedValue(mockSession);
       prismaMock.user.update.mockResolvedValue({ ...mockPatient, status: 'APPROVED' });
+      prismaMock.session.update.mockResolvedValue({ ...mockSession, status: 'CONFIRMED' });
 
       await service.admitPatient({
-        email: 'p@test.com', name: 'Juan',
-        price: '100', sessions: 5, currency: 'PYG',
+        sessionId: 10, price: '100', sessions: 5, currency: 'PYG',
       });
 
       expect(prismaMock.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { status: 'APPROVED' } }),
+        expect.objectContaining({ where: { id: mockPatient.id }, data: { status: 'APPROVED' } }),
       );
-      expect(emailMock.sendApproval).toHaveBeenCalled();
+      expect(prismaMock.session.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 10 }, data: { status: 'CONFIRMED' } }),
+      );
+      expect(emailMock.sendApproval).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: mockPatient.email,
+          planLabel: 'Programa de coaching',
+          sessionDate: expect.any(String),
+        }),
+      );
+
+      // El JWT del link de pago debe llevar el monto/moneda reales que Diego cargó —
+      // POST /payments/create-link los lee del propio payload, no de otro lado.
+      const { paymentUrl } = emailMock.sendApproval.mock.calls[0][0];
+      const token = new URL(paymentUrl).searchParams.get('token')!;
+      const payload = jwt.verify(token, 'secret') as { patientId: number; amount: number; currency: string };
+      expect(payload.amount).toBe(100);
+      expect(payload.currency).toBe('PYG');
     });
 
-    it('con paciente inexistente → lanza NotFoundException', async () => {
-      prismaMock.user.findUnique.mockResolvedValue(null);
+    it('con sesión inexistente → lanza NotFoundException', async () => {
+      prismaMock.session.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.admitPatient({ email: 'noexiste@test.com', name: 'X', price: '100', sessions: 1, currency: 'PYG' }),
+        service.admitPatient({ sessionId: 999, price: '100', sessions: 1, currency: 'PYG' }),
       ).rejects.toThrow(NotFoundException);
       expect(prismaMock.user.update).not.toHaveBeenCalled();
       expect(emailMock.sendApproval).not.toHaveBeenCalled();
     });
 
-    it('con paciente ya APPROVED → no explota (aunque reenvía el email de aprobación)', async () => {
+    it('con sesión ya CONFIRMED → no explota (aunque reenvía el email de aprobación)', async () => {
       // Nota: admitPatient() no chequea el status actual antes de actuar — si se
-      // llama dos veces sobre el mismo paciente, vuelve a mandar el email de
+      // llama dos veces sobre la misma sesión, vuelve a mandar el email de
       // aprobación con un link de pago nuevo en vez de detectar el duplicado.
       // Documentado acá como comportamiento real, no como bug a corregir.
-      const alreadyApproved = { ...mockPatient, status: 'APPROVED' as const };
-      prismaMock.user.findUnique.mockResolvedValue(alreadyApproved);
-      prismaMock.user.update.mockResolvedValue(alreadyApproved);
+      const alreadyConfirmed = { ...mockSession, status: 'CONFIRMED' as const };
+      prismaMock.session.findUnique.mockResolvedValue(alreadyConfirmed);
+      prismaMock.user.update.mockResolvedValue({ ...mockPatient, status: 'APPROVED' });
+      prismaMock.session.update.mockResolvedValue(alreadyConfirmed);
 
       await expect(
-        service.admitPatient({ email: 'p@test.com', name: 'Juan', price: '100', sessions: 5, currency: 'PYG' }),
+        service.admitPatient({ sessionId: 10, price: '100', sessions: 5, currency: 'PYG' }),
       ).resolves.toEqual(expect.objectContaining({ ok: true }));
 
       expect(emailMock.sendApproval).toHaveBeenCalledTimes(1);
