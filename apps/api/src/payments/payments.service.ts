@@ -71,8 +71,14 @@ export class PaymentsService {
   // BOOK_AMOUNT/BOOK_CURRENCY son configurables porque Bancard staging solo tiene PYG
   // habilitado (USD hardcodeado generaba un process_id inválido en el VPOS) — cambiar
   // a USD cuando esté habilitado en Bancard producción.
+  //
+  // Bancard exige el monto siempre con dos decimales ("95000.00", no "95000") — el token
+  // MD5 se firma con este mismo string, así que un monto sin normalizar desincroniza la
+  // firma que calculamos acá de la que Bancard recalcula del otro lado y responde
+  // "Invalid token" aunque la private key sea correcta. BOOK_AMOUNT en Railway está seteado
+  // como "95000" (sin decimales), por eso se normaliza acá en vez de asumir el formato.
   async createBookPaymentLink(email: string, nombre: string) {
-    const amountStr = this.cfg.get('BOOK_AMOUNT') ?? '95000';
+    const amountStr = Number(this.cfg.get('BOOK_AMOUNT') ?? '95000').toFixed(2);
     const currency  = this.cfg.get('BOOK_CURRENCY') ?? 'PYG';
 
     // Bancard exige que shop_process_id sea numérico (verificado contra la API real de

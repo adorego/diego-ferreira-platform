@@ -96,7 +96,7 @@ describe('PaymentsService', () => {
       );
       const body = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(body.operation.token).toMatch(/^[a-f0-9]{32}$/);
-      expect(body.operation.amount).toBe('95000');
+      expect(body.operation.amount).toBe('95000.00');
       expect(body.operation.currency).toBe('PYG');
       expect(body.operation.description).toContain('Libro');
       expect(prismaMock.bookPurchase.create).toHaveBeenCalledWith(
@@ -104,7 +104,7 @@ describe('PaymentsService', () => {
           data: expect.objectContaining({
             email: 'lector@test.com',
             nombre: 'Lector Test',
-            amount: '95000',
+            amount: '95000.00',
             currency: 'PYG',
           }),
         }),
