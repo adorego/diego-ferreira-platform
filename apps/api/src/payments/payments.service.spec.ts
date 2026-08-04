@@ -67,7 +67,7 @@ describe('PaymentsService', () => {
 
   describe('createPaymentLink()', () => {
     it('genera hash MD5 (32 chars hex) y llama fetch a Bancard API', async () => {
-      fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success' }) });
+      fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success', process_id: 'test-process-id' }) });
       prismaMock.payment.create.mockResolvedValue({});
 
       const result = await service.createPaymentLink(1, 100, 'PYG');
@@ -79,13 +79,17 @@ describe('PaymentsService', () => {
       const body = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(body.operation.token).toMatch(/^[a-f0-9]{32}$/);
       expect(body.operation.iva_amount).toBe('0.00');
-      expect(result.processId).toBeDefined();
+      // processId debe ser el process_id opaco que devuelve Bancard, no el
+      // shop_process_id numérico que generamos nosotros — son valores distintos.
+      expect(result.processId).toBe('test-process-id');
+      expect(result.shopProcessId).toBeDefined();
+      expect(result.shopProcessId).not.toBe(result.processId);
     });
   });
 
   describe('createBookPaymentLink()', () => {
     it('con BOOK_AMOUNT/BOOK_CURRENCY sin configurar → usa el fallback 95000 PYG', async () => {
-      fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success' }) });
+      fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success', process_id: 'test-process-id' }) });
       prismaMock.bookPurchase.create.mockResolvedValue({});
 
       const result = await service.createBookPaymentLink('lector@test.com', 'Lector Test');
@@ -110,8 +114,11 @@ describe('PaymentsService', () => {
         }),
       );
       expect(prismaMock.payment.create).not.toHaveBeenCalled();
-      expect(result.processId).toBeDefined();
-      expect(result.shopProcessId).toBe(result.processId);
+      // processId debe ser el process_id opaco que devuelve Bancard, no el
+      // shop_process_id numérico que generamos nosotros — son valores distintos.
+      expect(result.processId).toBe('test-process-id');
+      expect(result.shopProcessId).toBeDefined();
+      expect(result.shopProcessId).not.toBe(result.processId);
     });
 
     it('con BOOK_AMOUNT/BOOK_CURRENCY configuradas → las usa en vez del fallback', async () => {
@@ -130,7 +137,7 @@ describe('PaymentsService', () => {
       }).compile();
       const usdService = module.get<PaymentsService>(PaymentsService);
 
-      fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success' }) });
+      fetchMock.mockResolvedValue({ json: () => Promise.resolve({ status: 'success', process_id: 'test-process-id' }) });
       prismaMock.bookPurchase.create.mockResolvedValue({});
 
       await usdService.createBookPaymentLink('lector@test.com', 'Lector Test');

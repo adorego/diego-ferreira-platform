@@ -63,7 +63,10 @@ export class PaymentsService {
       },
     });
 
-    return { processId: shopProcessId.toString() };
+    return {
+      processId:     data.process_id,
+      shopProcessId: shopProcessId.toString(),
+    };
   }
 
   // Compra directa del libro "Despertá y avanzá, ¡Carajo!" — no requiere
@@ -140,7 +143,10 @@ export class PaymentsService {
       `Compra de libro iniciada — uuid: ${purchaseUuid} | shop_process_id: ${shopProcessId} | email: ${email}`,
     );
 
-    return { processId: shopProcessId.toString(), shopProcessId: shopProcessId.toString() };
+    return {
+      processId:     data.process_id,
+      shopProcessId: shopProcessId.toString(),
+    };
   }
 
   async handleWebhook(payload: any) {
