@@ -181,7 +181,7 @@ export default function LibroCompra() {
               </Typography>
 
               <Button
-                href="/libro-muestra.pdf"
+                href="/muestra-libro-diego-ferreira.pdf"
                 download
                 variant="text"
                 sx={{ color: 'rgba(255,255,255,0.6)', textTransform: 'none', fontWeight: 500, fontSize: '0.85rem', '&:hover': { color: 'white' } }}

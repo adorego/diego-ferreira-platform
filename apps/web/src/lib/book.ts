@@ -39,6 +39,4 @@ export const BOOK_PRICE = {
   display: 'Gs. 150.000',
 }
 
-// TODO(Diego): subir el PDF real con los capítulos 1 al 3 a esta ruta
-// (apps/web/public/preview_libro_diego.pdf) antes de publicar la sección.
-export const BOOK_PREVIEW_PDF_URL = '/preview_libro_diego.pdf'
+export const BOOK_PREVIEW_PDF_URL = '/muestra-libro-diego-ferreira.pdf'

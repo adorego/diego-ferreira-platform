@@ -107,7 +107,7 @@ export default function LibroHero() {
                 Comprar ahora — USD 12.99
               </Button>
               <Button
-                href="/libro-muestra.pdf"
+                href="/muestra-libro-diego-ferreira.pdf"
                 download
                 variant="text"
                 sx={{ color: 'rgba(255,255,255,0.75)', textTransform: 'none', fontWeight: 600, '&:hover': { color: 'white' } }}
