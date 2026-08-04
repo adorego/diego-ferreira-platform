@@ -1,3 +1,6 @@
+// Este componente ya no se usa en /main.
+// La compra directa del libro se maneja en /avanza (LibroCompra.tsx).
+// Se mantiene como referencia histórica.
 'use client'
 import * as React from 'react'
 import { Box, Typography, Button, TextField } from '@mui/material'

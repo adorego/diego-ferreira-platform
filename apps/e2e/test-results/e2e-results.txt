@@ -1,0 +1,277 @@
+◇ injected env (4) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+
+Running 21 tests using 5 workers
+
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+  ✓   4 [chromium] › tests/auth.spec.ts:13:7 › Autenticación (apps/admin) › login exitoso con credenciales válidas (813ms)
+  ✓   6 [chromium] › tests/auth.spec.ts:21:7 › Autenticación (apps/admin) › login fallido con password incorrecto (673ms)
+  ✓   7 [chromium] › tests/auth.spec.ts:37:7 › Autenticación (apps/admin) › /dashboard sin sesión: NO redirige a /login (bug conocido, sin middleware en apps/admin) (621ms)
+  ✓   1 [chromium] › tests/booking.spec.ts:9:7 › Agendamiento (/agendar) › flujo de agendamiento carga el formulario sin completar el submit (2.4s)
+  ✓   5 [chromium] › tests/landing.spec.ts:4:7 › Landing principal (/main) › landing /main carga correctamente (2.6s)
+  ✓   8 [chromium] › tests/auth.spec.ts:46:7 › Autenticación (apps/admin) › /registrados no tiene página implementada (404) — no es una ruta protegida real (582ms)
+  ✓   2 [chromium] › tests/payment-flow.spec.ts:4:7 › Flujo de pago (coaching, /pago) › token inválido en /pago no muestra iframe de Bancard (3.3s)
+  ✓  11 [chromium] › tests/payment-flow.spec.ts:12:7 › Flujo de pago (coaching, /pago) › /pago sin token muestra mensaje de error (2.0s)
+  ✓   9 [chromium] › tests/booking.spec.ts:32:7 › Agendamiento (/agendar) › /agendar con plan=basico muestra el plan Básico (3.4s)
+  ✓  12 [chromium] › tests/payment-flow.spec.ts:18:7 › Flujo de pago (coaching, /pago) › página /pago/confirmacion carga correctamente (2.5s)
+  ✓  13 [chromium] › tests/booking.spec.ts:39:7 › Agendamiento (/agendar) › /agendar con plan=premium muestra el plan Premium (2.2s)
+  ✓  10 [chromium] › tests/landing.spec.ts:22:7 › Landing principal (/main) › navegación por anchors funciona (5.9s)
+  ✓  14 [chromium] › tests/payment-flow.spec.ts:24:7 › Flujo de pago (coaching, /pago) › página /pago/cancelado tiene opción de reintentar (1.8s)
+  ✓  15 [chromium] › tests/booking.spec.ts:46:7 › Agendamiento (/agendar) › /agendar sin plan muestra mensaje de "no elegiste un plan" (2.0s)
+  ✘   3 [chromium] › tests/libro.spec.ts:25:7 › Landing del libro (/avanza) › carga con todos los elementos principales (30.7s)
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+  ✘  16 [chromium] › tests/landing.spec.ts:43:7 › Landing principal (/main) › sección del libro tiene los botones correctos y sin formulario de compra (30.8s)
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+  ✘  17 [chromium] › tests/payment-flow.spec.ts:33:7 › Flujo de pago (libro, /avanza) › página /avanza/confirmacion carga correctamente (30.7s)
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+  ✘  18 [chromium] › tests/libro.spec.ts:35:7 › Landing del libro (/avanza) › los 15 capítulos están listados (sin acordeón, todos visibles) (30.6s)
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+  ✘  19 [chromium] › tests/landing.spec.ts:59:7 › Landing principal (/main) › página /avanza carga correctamente (30.7s)
+  ✘  20 [chromium] › tests/payment-flow.spec.ts:39:7 › Flujo de pago (libro, /avanza) › página /avanza/cancelado tiene opción de reintentar (30.7s)
+  ✘  21 [chromium] › tests/libro.spec.ts:44:7 › Landing del libro (/avanza) › el formulario de compra no procede sin email/nombre completos (30.7s)
+
+
+  1) [chromium] › tests/landing.spec.ts:43:7 › Landing principal (/main) › sección del libro tiene los botones correctos y sin formulario de compra 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('link', { name: 'Comprar el libro →' })
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for getByRole('link', { name: 'Comprar el libro →' })[22m
+
+
+      45 |
+      46 |     const comprarBtn = page.getByRole('link', { name: 'Comprar el libro →' })
+    > 47 |     await expect(comprarBtn).toBeVisible()
+         |                              ^
+      48 |     await expect(comprarBtn).toHaveAttribute('href', '/avanza#comprar')
+      49 |
+      50 |     const verBtn = page.getByRole('link', { name: 'Ver el libro' })
+        at /home/andres/Proyectos/diego-ferreira-platform/apps/e2e/tests/landing.spec.ts:47:30
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/landing-Landing-principal--7e961--y-sin-formulario-de-compra-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/landing-Landing-principal--7e961--y-sin-formulario-de-compra-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/landing-Landing-principal--7e961--y-sin-formulario-de-compra-chromium/error-context.md
+
+  2) [chromium] › tests/landing.spec.ts:59:7 › Landing principal (/main) › página /avanza carga correctamente 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('USD 12.99').first()
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for getByText('USD 12.99').first()[22m
+
+
+      60 |     await page.goto('/avanza')
+      61 |
+    > 62 |     await expect(page.getByText('USD 12.99').first()).toBeVisible()
+         |                                                       ^
+      63 |     await expect(page.locator('#comprar')).toBeVisible()
+      64 |     await expect(page.locator('#comprar input[type="email"]')).toBeVisible()
+      65 |     await expect(page.locator('#comprar').getByPlaceholder('Nombre completo')).toBeVisible()
+        at /home/andres/Proyectos/diego-ferreira-platform/apps/e2e/tests/landing.spec.ts:62:55
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/landing-Landing-principal--b1a4e--avanza-carga-correctamente-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/landing-Landing-principal--b1a4e--avanza-carga-correctamente-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/landing-Landing-principal--b1a4e--avanza-carga-correctamente-chromium/error-context.md
+
+  3) [chromium] › tests/libro.spec.ts:25:7 › Landing del libro (/avanza) › carga con todos los elementos principales 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('heading', { name: 'Despertá. Avanzá. Carajo.', level: 1 })
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for getByRole('heading', { name: 'Despertá. Avanzá. Carajo.', level: 1 })[22m
+
+
+      27 |
+      28 |     // "Despertá. Avanzá. Carajo." aparece dos veces (título del hero y capítulo 15)
+    > 29 |     await expect(page.getByRole('heading', { level: 1, name: 'Despertá. Avanzá. Carajo.' })).toBeVisible()
+         |                                                                                              ^
+      30 |     await expect(page.getByText('USD 12.99').first()).toBeVisible()
+      31 |     await expect(page.locator('#comprar')).toBeVisible()
+      32 |     await expect(page.getByText('Comprar ahora').first()).toBeVisible()
+        at /home/andres/Proyectos/diego-ferreira-platform/apps/e2e/tests/libro.spec.ts:29:94
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/libro-Landing-del-libro-av-bd9e7-s-los-elementos-principales-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/libro-Landing-del-libro-av-bd9e7-s-los-elementos-principales-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/libro-Landing-del-libro-av-bd9e7-s-los-elementos-principales-chromium/error-context.md
+
+  4) [chromium] › tests/libro.spec.ts:35:7 › Landing del libro (/avanza) › los 15 capítulos están listados (sin acordeón, todos visibles) 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('No nací fuerte', { exact: true }).first()
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for getByText('No nací fuerte', { exact: true }).first()[22m
+
+
+      37 |
+      38 |     for (const chapter of BOOK_CHAPTERS) {
+    > 39 |       await expect(page.getByText(chapter, { exact: true }).first()).toBeVisible()
+         |                                                                      ^
+      40 |     }
+      41 |     expect(BOOK_CHAPTERS.length).toBe(15)
+      42 |   })
+        at /home/andres/Proyectos/diego-ferreira-platform/apps/e2e/tests/libro.spec.ts:39:70
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/libro-Landing-del-libro-av-8b3e7-in-acordeón-todos-visibles--chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/libro-Landing-del-libro-av-8b3e7-in-acordeón-todos-visibles--chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/libro-Landing-del-libro-av-8b3e7-in-acordeón-todos-visibles--chromium/error-context.md
+
+  5) [chromium] › tests/libro.spec.ts:44:7 › Landing del libro (/avanza) › el formulario de compra no procede sin email/nombre completos 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('#comprar').getByRole('button', { name: /comprar ahora/i })[22m
+
+
+      50 |     // NOTA: el botón no se deshabilita por campos vacíos (comportamiento real de
+      51 |     // LibroCompra.tsx) — la validación ocurre al hacer click y muestra un error.
+    > 52 |     await submitBtn.click()
+         |                     ^
+      53 |     await expect(compraSection.getByText(/ingresá tu nombre completo/i)).toBeVisible()
+      54 |
+      55 |     await compraSection.getByPlaceholder('Nombre completo').fill('Test E2E')
+        at /home/andres/Proyectos/diego-ferreira-platform/apps/e2e/tests/libro.spec.ts:52:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/libro-Landing-del-libro-av-c4613--sin-email-nombre-completos-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/libro-Landing-del-libro-av-c4613--sin-email-nombre-completos-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/libro-Landing-del-libro-av-c4613--sin-email-nombre-completos-chromium/error-context.md
+
+  6) [chromium] › tests/payment-flow.spec.ts:33:7 › Flujo de pago (libro, /avanza) › página /avanza/confirmacion carga correctamente 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText(/gracias/i)
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for getByText(/gracias/i)[22m
+
+
+      33 |   test('página /avanza/confirmacion carga correctamente', async ({ page }) => {
+      34 |     await page.goto('/avanza/confirmacion')
+    > 35 |     await expect(page.getByText(/gracias/i)).toBeVisible()
+         |                                              ^
+      36 |     await expect(page.getByText(/compra/i).first()).toBeVisible()
+      37 |   })
+      38 |
+        at /home/andres/Proyectos/diego-ferreira-platform/apps/e2e/tests/payment-flow.spec.ts:35:46
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/payment-flow-Flujo-de-pago-35e48-rmacion-carga-correctamente-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/payment-flow-Flujo-de-pago-35e48-rmacion-carga-correctamente-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/payment-flow-Flujo-de-pago-35e48-rmacion-carga-correctamente-chromium/error-context.md
+
+  7) [chromium] › tests/payment-flow.spec.ts:39:7 › Flujo de pago (libro, /avanza) › página /avanza/cancelado tiene opción de reintentar 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('a[href*="/avanza"]')
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 30000ms[22m
+    [2m  - waiting for locator('a[href*="/avanza"]')[22m
+
+
+      39 |   test('página /avanza/cancelado tiene opción de reintentar', async ({ page }) => {
+      40 |     await page.goto('/avanza/cancelado')
+    > 41 |     await expect(page.locator('a[href*="/avanza"]')).toBeVisible()
+         |                                                      ^
+      42 |     await expect(page.getByRole('link', { name: 'Intentar de nuevo' })).toHaveAttribute('href', '/avanza#comprar')
+      43 |   })
+      44 | })
+        at /home/andres/Proyectos/diego-ferreira-platform/apps/e2e/tests/payment-flow.spec.ts:41:54
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/payment-flow-Flujo-de-pago-d8382--tiene-opción-de-reintentar-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/payment-flow-Flujo-de-pago-d8382--tiene-opción-de-reintentar-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/payment-flow-Flujo-de-pago-d8382--tiene-opción-de-reintentar-chromium/error-context.md
+
+  7 failed
+    [chromium] › tests/landing.spec.ts:43:7 › Landing principal (/main) › sección del libro tiene los botones correctos y sin formulario de compra 
+    [chromium] › tests/landing.spec.ts:59:7 › Landing principal (/main) › página /avanza carga correctamente 
+    [chromium] › tests/libro.spec.ts:25:7 › Landing del libro (/avanza) › carga con todos los elementos principales 
+    [chromium] › tests/libro.spec.ts:35:7 › Landing del libro (/avanza) › los 15 capítulos están listados (sin acordeón, todos visibles) 
+    [chromium] › tests/libro.spec.ts:44:7 › Landing del libro (/avanza) › el formulario de compra no procede sin email/nombre completos 
+    [chromium] › tests/payment-flow.spec.ts:33:7 › Flujo de pago (libro, /avanza) › página /avanza/confirmacion carga correctamente 
+    [chromium] › tests/payment-flow.spec.ts:39:7 › Flujo de pago (libro, /avanza) › página /avanza/cancelado tiene opción de reintentar 
+  14 passed (1.6m)

@@ -51,7 +51,8 @@ describe('RemindersService', () => {
     service = module.get<RemindersService>(RemindersService);
   });
 
-  it('sendReminders() llama email.sendReminder para sesiones en ventana de tiempo', async () => {
+  it('sendReminders() con sesión en la ventana de 24h → envía recordatorio con hoursUntil: 24', async () => {
+    // El primer findMany() corresponde a la ventana de 24h (ver reminders.service.ts:19-21)
     prismaMock.session.findMany
       .mockResolvedValueOnce([makeSession()])
       .mockResolvedValueOnce([]);
@@ -59,6 +60,37 @@ describe('RemindersService', () => {
     await service.sendReminders();
 
     expect(emailMock.sendReminder).toHaveBeenCalledTimes(1);
+    expect(emailMock.sendReminder).toHaveBeenCalledWith(
+      expect.objectContaining({ hoursUntil: 24, to: 'p@test.com' }),
+    );
+  });
+
+  it('sendReminders() con sesión en la ventana de 1h → envía recordatorio con hoursUntil: 1', async () => {
+    // El segundo findMany() corresponde a la ventana de 1h (ver reminders.service.ts:22-25)
+    prismaMock.session.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([makeSession()]);
+
+    await service.sendReminders();
+
+    expect(emailMock.sendReminder).toHaveBeenCalledTimes(1);
+    expect(emailMock.sendReminder).toHaveBeenCalledWith(
+      expect.objectContaining({ hoursUntil: 1, to: 'p@test.com' }),
+    );
+  });
+
+  it('sendReminders() filtra por reminderSent:false en la query — evita reenviar duplicados', async () => {
+    prismaMock.session.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await service.sendReminders();
+
+    expect(prismaMock.session.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ reminderSent: false, status: 'CONFIRMED' }),
+      }),
+    );
   });
 
   it('sendReminders() marca reminderSent=true después de enviar', async () => {

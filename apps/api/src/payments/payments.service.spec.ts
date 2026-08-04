@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { NotFoundException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -318,15 +319,17 @@ describe('PaymentsService', () => {
     it('con token inexistente → lanza NotFoundException', async () => {
       prismaMock.bookPurchase.findUnique.mockResolvedValue(null);
 
-      await expect(service.downloadBook('token-invalido')).rejects.toThrow();
+      await expect(service.downloadBook('token-invalido')).rejects.toThrow(NotFoundException);
+      expect(prismaMock.bookPurchase.update).not.toHaveBeenCalled();
     });
 
-    it('con status distinto de CONFIRMED → lanza NotFoundException', async () => {
+    it('con status PENDING (no CONFIRMED) → lanza NotFoundException', async () => {
       prismaMock.bookPurchase.findUnique.mockResolvedValue({
         downloadToken: 'tok-1', status: 'PENDING',
       });
 
-      await expect(service.downloadBook('tok-1')).rejects.toThrow();
+      await expect(service.downloadBook('tok-1')).rejects.toThrow(NotFoundException);
+      expect(prismaMock.bookPurchase.update).not.toHaveBeenCalled();
     });
 
     it('con compra CONFIRMED → actualiza downloadedAt y retorna downloadUrl', async () => {

@@ -21,12 +21,16 @@ const mockPatient = {
 
 describe('PatientsService', () => {
   let service: PatientsService;
-  let prismaMock: { user: { findUnique: jest.Mock; count: jest.Mock; update: jest.Mock } };
+  let prismaMock: {
+    user:    { findUnique: jest.Mock; count: jest.Mock; update: jest.Mock };
+    session: { findMany: jest.Mock };
+  };
   let emailMock: { sendApproval: jest.Mock };
 
   beforeEach(async () => {
     prismaMock = {
-      user: { findUnique: jest.fn(), count: jest.fn(), update: jest.fn() },
+      user:    { findUnique: jest.fn(), count: jest.fn(), update: jest.fn() },
+      session: { findMany: jest.fn() },
     };
     emailMock = { sendApproval: jest.fn().mockResolvedValue(undefined) };
 
@@ -77,6 +81,30 @@ describe('PatientsService', () => {
     });
   });
 
+  describe('getAllSessions()', () => {
+    it('retorna las sesiones con paciente y resumen incluidos', async () => {
+      const session = {
+        id: 1, patientId: 1, type: 'PLAN', status: 'CONFIRMED',
+        start: new Date('2026-06-01T10:00:00.000Z'), end: null,
+        roomUrl: null, gcalEventId: null, recordingUrl: null,
+        reminderSent: false, price: null, paymentId: null,
+        createdAt: new Date('2026-05-01'),
+        patient: mockPatient,
+        summary: null,
+      };
+      prismaMock.session.findMany.mockResolvedValue([session]);
+
+      const result = await service.getAllSessions();
+
+      expect(prismaMock.session.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: { patient: true, summary: true },
+        }),
+      );
+      expect(result).toEqual([session]);
+    });
+  });
+
   describe('admitPatient()', () => {
     it('cambia status a APPROVED y llama emailService.sendApproval', async () => {
       prismaMock.user.findUnique.mockResolvedValue(mockPatient);
@@ -91,6 +119,32 @@ describe('PatientsService', () => {
         expect.objectContaining({ data: { status: 'APPROVED' } }),
       );
       expect(emailMock.sendApproval).toHaveBeenCalled();
+    });
+
+    it('con paciente inexistente → lanza NotFoundException', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.admitPatient({ email: 'noexiste@test.com', name: 'X', price: '100', sessions: 1, currency: 'PYG' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prismaMock.user.update).not.toHaveBeenCalled();
+      expect(emailMock.sendApproval).not.toHaveBeenCalled();
+    });
+
+    it('con paciente ya APPROVED → no explota (aunque reenvía el email de aprobación)', async () => {
+      // Nota: admitPatient() no chequea el status actual antes de actuar — si se
+      // llama dos veces sobre el mismo paciente, vuelve a mandar el email de
+      // aprobación con un link de pago nuevo en vez de detectar el duplicado.
+      // Documentado acá como comportamiento real, no como bug a corregir.
+      const alreadyApproved = { ...mockPatient, status: 'APPROVED' as const };
+      prismaMock.user.findUnique.mockResolvedValue(alreadyApproved);
+      prismaMock.user.update.mockResolvedValue(alreadyApproved);
+
+      await expect(
+        service.admitPatient({ email: 'p@test.com', name: 'Juan', price: '100', sessions: 5, currency: 'PYG' }),
+      ).resolves.toEqual(expect.objectContaining({ ok: true }));
+
+      expect(emailMock.sendApproval).toHaveBeenCalledTimes(1);
     });
   });
 });

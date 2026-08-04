@@ -60,11 +60,44 @@ describe('AuthController (e2e)', () => {
   });
 
   describe('POST /auth/logout', () => {
-    it('retorna 200 y body { ok: true }', async () => {
+    it('retorna 200, body { ok: true } y limpia la cookie access_token', async () => {
       const res = await request(app.getHttpServer()).post('/auth/logout');
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ ok: true });
+      expect(res.headers['set-cookie']).toBeDefined();
+      // clearCookie() setea la cookie con Expires en el pasado para que el browser la borre
+      expect(res.headers['set-cookie'][0]).toContain('access_token=;');
+    });
+  });
+
+  describe('GET /auth/me', () => {
+    it('retorna el payload que JwtGuard dejó en req.user', async () => {
+      // El JwtGuard real hace `req.user = jwt.verify(token, ...)` (ver jwt.guard.ts) —
+      // acá se simula ese efecto para no depender de un JWT real firmado.
+      const moduleRef: TestingModule = await Test.createTestingModule({
+        controllers: [AuthController],
+        providers: [{ provide: AuthService, useValue: mockAuthService }],
+      })
+        .overrideGuard(JwtGuard)
+        .useValue({
+          canActivate: (ctx: any) => {
+            const req = ctx.switchToHttp().getRequest();
+            req.user = { sub: '1', email: 'test@test.com', role: 'PATIENT' };
+            return true;
+          },
+        })
+        .compile();
+
+      const meApp = moduleRef.createNestApplication();
+      await meApp.init();
+
+      const res = await request(meApp.getHttpServer()).get('/auth/me');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ user: { sub: '1', email: 'test@test.com', role: 'PATIENT' } });
+
+      await meApp.close();
     });
   });
 });

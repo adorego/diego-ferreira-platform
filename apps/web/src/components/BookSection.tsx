@@ -1,8 +1,8 @@
 'use client'
 import * as React from 'react'
 import { Box, Typography, Button, Collapse } from '@mui/material'
+import Link from 'next/link'
 import BookCover from './BookCover'
-import BookPurchase from './BookPurchase'
 import {
   BOOK_TITLE,
   BOOK_AUTHOR,
@@ -14,11 +14,6 @@ import {
 const ACCENT = '#EBBF01'
 const BG = '#FAFAF5'
 const TEXT = '#2B2B2B'
-
-function scrollToCompra(e: React.MouseEvent) {
-  e.preventDefault()
-  document.getElementById('libro-comprar')?.scrollIntoView({ behavior: 'smooth' })
-}
 
 export default function BookSection() {
   const [chaptersOpen, setChaptersOpen] = React.useState(false)
@@ -145,32 +140,32 @@ export default function BookSection() {
               </Box>
 
               <Button
-                onClick={scrollToCompra}
-                href="#libro-comprar"
+                component={Link}
+                href="/avanza"
                 variant="contained"
-                size="large"
                 sx={{
-                  bgcolor: '#0a0a0a',
-                  color: 'white',
-                  fontWeight: 700,
-                  borderRadius: 50,
-                  px: 4,
-                  py: 1.5,
+                  borderRadius: 999,
+                  px: 5,
+                  py: 1.6,
                   textTransform: 'none',
-                  fontSize: '0.9rem',
-                  '&:hover': { bgcolor: '#222' },
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  bgcolor: '#EBBF01',
+                  color: '#111',
+                  boxShadow: '0 6px 24px rgba(235,191,1,0.28)',
+                  '&:hover': {
+                    bgcolor: '#d4ab01',
+                    boxShadow: '0 10px 32px rgba(235,191,1,0.42)',
+                    transform: 'translateY(-2px)',
+                  },
+                  transition: 'all 0.2s ease',
                 }}
               >
-                Quiero mi copia
+                Ver más →
               </Button>
             </Box>
           </Box>
         </Box>
-      </Box>
-
-      {/* Bloque 3 — Compra con Bancard */}
-      <Box id="libro-comprar">
-        <BookPurchase />
       </Box>
     </Box>
   )

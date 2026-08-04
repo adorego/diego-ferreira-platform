@@ -1,0 +1,173 @@
+'use client'
+import * as React from 'react'
+import { Box, Container, Typography, Button, TextField } from '@mui/material'
+
+const PRIMARY = '#EBBF01'
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const INCLUYE = [
+  'PDF completo (15 capítulos)',
+  'Descarga inmediata tras el pago',
+  'Acceso de por vida al archivo',
+  'Pagá con tarjeta vía Bancard',
+]
+
+export default function LibroCompra() {
+  const [email, setEmail]     = React.useState('')
+  const [nombre, setNombre]   = React.useState('')
+  const [error, setError]     = React.useState('')
+  const [loading, setLoading] = React.useState(false)
+
+  const isProduction = process.env.NODE_ENV === 'production'
+  const bancardBase  = isProduction
+    ? 'https://vpos.infonet.com.py'
+    : 'https://vpos.infonet.com.py:8888'
+
+  async function handleComprar() {
+    setError('')
+    if (!nombre.trim()) {
+      setError('Ingresá tu nombre completo.')
+      return
+    }
+    if (!EMAIL_RE.test(email)) {
+      setError('Ingresá un email válido para recibir el link de descarga.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/libro/initiate`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, nombre }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.processId) {
+        setError('No pudimos iniciar el pago. Probá de nuevo en unos minutos.')
+        setLoading(false)
+        return
+      }
+      // Redirige al checkout hosteado de Bancard (VPOS 2.0).
+      // TODO: confirmar en staging que /checkout/new/{process_id} es la ruta correcta
+      // antes de ir a producción — el resto del proyecto usa el widget embebido
+      // (Bancard.Checkout.createForm) en vez de este redirect de página completa.
+      window.location.href = `${bancardBase}/checkout/new/${data.processId}`
+    } catch {
+      setError('Error de conexión. Probá de nuevo en unos minutos.')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Box
+      id="comprar"
+      component="section"
+      sx={{
+        position: 'relative',
+        overflow: 'hidden',
+        bgcolor: '#080808',
+        color: 'white',
+        py: { xs: 10, md: 14 },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(ellipse at bottom, rgba(235,191,1,0.14) 0%, rgba(8,8,8,0) 60%)',
+          pointerEvents: 'none',
+        },
+      }}
+    >
+      <Container maxWidth={false} sx={{ maxWidth: 1440, mx: 'auto', px: { xs: 2, sm: 3, md: 4 }, position: 'relative' }}>
+        <Box sx={{ maxWidth: 480, mx: 'auto', textAlign: 'center' }}>
+          <Typography sx={{ fontSize: { xs: '2.4rem', md: '2.8rem' }, fontWeight: 900, color: PRIMARY, mb: 1 }}>
+            USD 12.99
+          </Typography>
+          <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', mb: 5 }}>
+            Pago único · Edición digital
+          </Typography>
+
+          <Box sx={{ textAlign: 'left', mb: 5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {INCLUYE.map(item => (
+              <Typography key={item} sx={{ color: 'rgba(255,255,255,0.82)', fontSize: '0.95rem' }}>
+                ✓ {item}
+              </Typography>
+            ))}
+          </Box>
+
+          <TextField
+            placeholder="Nombre completo"
+            value={nombre}
+            onChange={e => setNombre(e.target.value)}
+            fullWidth
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'rgba(255,255,255,0.04)',
+                borderRadius: 2,
+                color: 'white',
+                '& fieldset': { borderColor: 'rgba(255,255,255,0.15)' },
+              },
+            }}
+          />
+          <TextField
+            type="email"
+            placeholder="Tu email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            fullWidth
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'rgba(255,255,255,0.04)',
+                borderRadius: 2,
+                color: 'white',
+                '& fieldset': { borderColor: 'rgba(255,255,255,0.15)' },
+              },
+            }}
+          />
+
+          {error && (
+            <Typography sx={{ color: '#f87171', fontSize: '0.85rem', mb: 2 }}>
+              {error}
+            </Typography>
+          )}
+
+          <Button
+            onClick={handleComprar}
+            disabled={loading}
+            variant="contained"
+            fullWidth
+            size="large"
+            sx={{
+              bgcolor: PRIMARY,
+              color: '#0a0a0a',
+              fontWeight: 800,
+              borderRadius: 50,
+              py: 1.6,
+              textTransform: 'none',
+              fontSize: '0.95rem',
+              mb: 2,
+              '&:hover': { bgcolor: '#d4a800' },
+            }}
+          >
+            {loading ? 'Procesando…' : 'Comprar ahora — USD 12.99'}
+          </Button>
+
+          <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem', mb: 4 }}>
+            Pago seguro procesado por Bancard · Descarga inmediata
+          </Typography>
+
+          <Button
+            href="/libro-muestra.pdf"
+            download
+            variant="text"
+            sx={{ color: 'rgba(255,255,255,0.6)', textTransform: 'none', fontWeight: 500, fontSize: '0.85rem', '&:hover': { color: 'white' } }}
+          >
+            ¿Querés leer una muestra primero? Descargá los primeros capítulos gratis
+          </Button>
+        </Box>
+      </Container>
+    </Box>
+  )
+}

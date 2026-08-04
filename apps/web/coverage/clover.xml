@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1785711063745" clover="3.2.0">
+  <project timestamp="1785711063745" name="All files">
+    <metrics statements="137" coveredstatements="120" conditionals="60" coveredconditionals="47" methods="40" coveredmethods="32" elements="237" coveredelements="199" complexity="0" loc="137" ncloc="137" packages="7" files="13" classes="13"/>
+    <package name="src">
+      <metrics statements="19" coveredstatements="19" conditionals="8" coveredconditionals="8" methods="3" coveredmethods="3"/>
+      <file name="middleware.ts" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/middleware.ts">
+        <metrics statements="19" coveredstatements="19" conditionals="8" coveredconditionals="8" methods="3" coveredmethods="3"/>
+        <line num="5" count="1" type="stmt"/>
+        <line num="6" count="1" type="stmt"/>
+        <line num="9" count="10" type="stmt"/>
+        <line num="10" count="10" type="stmt"/>
+        <line num="12" count="24" type="stmt"/>
+        <line num="13" count="10" type="stmt"/>
+        <line num="15" count="10" type="cond" truecount="2" falsecount="0"/>
+        <line num="16" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="17" count="1" type="stmt"/>
+        <line num="19" count="2" type="stmt"/>
+        <line num="20" count="2" type="stmt"/>
+        <line num="21" count="2" type="stmt"/>
+        <line num="23" count="1" type="stmt"/>
+        <line num="24" count="1" type="stmt"/>
+        <line num="25" count="1" type="stmt"/>
+        <line num="29" count="8" type="cond" truecount="4" falsecount="0"/>
+        <line num="30" count="1" type="stmt"/>
+        <line num="33" count="7" type="stmt"/>
+        <line num="36" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.app.avanza">
+      <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+      <file name="page.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/app/avanza/page.tsx">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="8" count="5" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.app.pago">
+      <metrics statements="23" coveredstatements="18" conditionals="16" coveredconditionals="12" methods="7" coveredmethods="5"/>
+      <file name="PagoClient.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/app/pago/PagoClient.tsx">
+        <metrics statements="23" coveredstatements="18" conditionals="16" coveredconditionals="12" methods="7" coveredmethods="5"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="7" count="6" type="stmt"/>
+        <line num="8" count="6" type="stmt"/>
+        <line num="9" count="6" type="stmt"/>
+        <line num="10" count="6" type="stmt"/>
+        <line num="11" count="6" type="stmt"/>
+        <line num="13" count="6" type="stmt"/>
+        <line num="14" count="6" type="cond" truecount="1" falsecount="1"/>
+        <line num="18" count="6" type="stmt"/>
+        <line num="19" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="20" count="2" type="stmt"/>
+        <line num="26" count="2" type="stmt"/>
+        <line num="28" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="29" count="1" type="stmt"/>
+        <line num="31" count="0" type="stmt"/>
+        <line num="34" count="6" type="stmt"/>
+        <line num="35" count="4" type="cond" truecount="3" falsecount="1"/>
+        <line num="36" count="0" type="stmt"/>
+        <line num="37" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="38" count="0" type="stmt"/>
+        <line num="54" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="63" count="4" type="stmt"/>
+        <line num="67" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.components">
+      <metrics statements="11" coveredstatements="11" conditionals="4" coveredconditionals="4" methods="6" coveredmethods="6"/>
+      <file name="BookCover.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/components/BookCover.tsx">
+        <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="7" count="8" type="stmt"/>
+      </file>
+      <file name="BookSection.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/components/BookSection.tsx">
+        <metrics statements="9" coveredstatements="9" conditionals="4" coveredconditionals="4" methods="5" coveredmethods="5"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="14" count="1" type="stmt"/>
+        <line num="15" count="1" type="stmt"/>
+        <line num="16" count="1" type="stmt"/>
+        <line num="19" count="8" type="stmt"/>
+        <line num="21" count="8" type="stmt"/>
+        <line num="76" count="120" type="stmt"/>
+        <line num="91" count="120" type="stmt"/>
+        <line num="102" count="2" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.components.libro">
+      <metrics statements="51" coveredstatements="47" conditionals="18" coveredconditionals="17" methods="13" coveredmethods="12"/>
+      <file name="LibroCapitulos.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/components/libro/LibroCapitulos.tsx">
+        <metrics statements="6" coveredstatements="6" conditionals="4" coveredconditionals="4" methods="2" coveredmethods="2"/>
+        <line num="5" count="1" type="stmt"/>
+        <line num="8" count="1" type="stmt"/>
+        <line num="11" count="5" type="stmt"/>
+        <line num="34" count="75" type="stmt"/>
+        <line num="35" count="75" type="stmt"/>
+        <line num="36" count="75" type="stmt"/>
+      </file>
+      <file name="LibroCompra.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/components/libro/LibroCompra.tsx">
+        <metrics statements="32" coveredstatements="30" conditionals="14" coveredconditionals="13" methods="5" coveredmethods="5"/>
+        <line num="1" count="2" type="stmt"/>
+        <line num="5" count="2" type="stmt"/>
+        <line num="7" count="2" type="stmt"/>
+        <line num="9" count="2" type="stmt"/>
+        <line num="17" count="135" type="stmt"/>
+        <line num="18" count="135" type="stmt"/>
+        <line num="19" count="135" type="stmt"/>
+        <line num="20" count="135" type="stmt"/>
+        <line num="22" count="135" type="stmt"/>
+        <line num="23" count="135" type="cond" truecount="1" falsecount="1"/>
+        <line num="28" count="6" type="stmt"/>
+        <line num="29" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="30" count="1" type="stmt"/>
+        <line num="31" count="1" type="stmt"/>
+        <line num="33" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="34" count="1" type="stmt"/>
+        <line num="35" count="1" type="stmt"/>
+        <line num="38" count="4" type="stmt"/>
+        <line num="39" count="4" type="stmt"/>
+        <line num="40" count="4" type="stmt"/>
+        <line num="45" count="4" type="stmt"/>
+        <line num="46" count="4" type="cond" truecount="4" falsecount="0"/>
+        <line num="47" count="1" type="stmt"/>
+        <line num="48" count="1" type="stmt"/>
+        <line num="49" count="1" type="stmt"/>
+        <line num="55" count="3" type="stmt"/>
+        <line num="57" count="0" type="stmt"/>
+        <line num="58" count="0" type="stmt"/>
+        <line num="62" count="135" type="stmt"/>
+        <line num="92" count="540" type="stmt"/>
+        <line num="101" count="50" type="stmt"/>
+        <line num="117" count="65" type="stmt"/>
+      </file>
+      <file name="LibroDescripcion.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/components/libro/LibroDescripcion.tsx">
+        <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="2"/>
+        <line num="5" count="1" type="stmt"/>
+        <line num="7" count="1" type="stmt"/>
+        <line num="17" count="5" type="stmt"/>
+        <line num="42" count="30" type="stmt"/>
+      </file>
+      <file name="LibroHero.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/components/libro/LibroHero.tsx">
+        <metrics statements="5" coveredstatements="3" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="1"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="6" count="1" type="stmt"/>
+        <line num="9" count="0" type="stmt"/>
+        <line num="10" count="0" type="stmt"/>
+        <line num="14" count="5" type="stmt"/>
+      </file>
+      <file name="LibroTestimonios.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/components/libro/LibroTestimonios.tsx">
+        <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="2"/>
+        <line num="4" count="1" type="stmt"/>
+        <line num="6" count="1" type="stmt"/>
+        <line num="13" count="5" type="stmt"/>
+        <line num="31" count="15" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.components.nav">
+      <metrics statements="17" coveredstatements="9" conditionals="12" coveredconditionals="4" methods="9" coveredmethods="4"/>
+      <file name="TopBar.tsx" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/components/nav/TopBar.tsx">
+        <metrics statements="17" coveredstatements="9" conditionals="12" coveredconditionals="4" methods="9" coveredmethods="4"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="12" count="1" type="stmt"/>
+        <line num="20" count="1" type="stmt"/>
+        <line num="29" count="0" type="stmt"/>
+        <line num="30" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="31" count="0" type="stmt"/>
+        <line num="32" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="36" count="8" type="stmt"/>
+        <line num="37" count="8" type="stmt"/>
+        <line num="39" count="8" type="stmt"/>
+        <line num="67" count="40" type="stmt"/>
+        <line num="69" count="0" type="stmt"/>
+        <line num="107" count="2" type="stmt"/>
+        <line num="119" count="0" type="stmt"/>
+        <line num="129" count="0" type="stmt"/>
+        <line num="136" count="40" type="stmt"/>
+        <line num="140" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.lib">
+      <metrics statements="15" coveredstatements="15" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+      <file name="auth_server.ts" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/lib/auth_server.ts">
+        <metrics statements="8" coveredstatements="8" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+        <line num="11" count="4" type="stmt"/>
+        <line num="12" count="4" type="stmt"/>
+        <line num="13" count="4" type="stmt"/>
+        <line num="14" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="16" count="3" type="stmt"/>
+        <line num="19" count="3" type="stmt"/>
+        <line num="20" count="1" type="stmt"/>
+        <line num="22" count="2" type="stmt"/>
+      </file>
+      <file name="book.ts" path="/home/andres/Proyectos/diego-ferreira-platform/apps/web/src/lib/book.ts">
+        <metrics statements="7" coveredstatements="7" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="3" count="2" type="stmt"/>
+        <line num="4" count="2" type="stmt"/>
+        <line num="7" count="2" type="stmt"/>
+        <line num="15" count="2" type="stmt"/>
+        <line num="33" count="2" type="stmt"/>
+        <line num="36" count="2" type="stmt"/>
+        <line num="44" count="2" type="stmt"/>
+      </file>
+    </package>
+  </project>
+</coverage>

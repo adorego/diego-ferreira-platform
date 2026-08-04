@@ -34,10 +34,20 @@ describe('getCurrentUser()', () => {
     expect(user).toBeNull()
   })
 
-  it('retorna null con token expirado o inválido', async () => {
+  it('retorna null con token expirado', async () => {
     const cookieStore = { get: vi.fn().mockReturnValue({ value: 'expired_token' }) }
     vi.mocked(cookies).mockResolvedValue(cookieStore as any)
-    vi.mocked(jwtVerify).mockRejectedValue(new Error('JWTExpired'))
+    vi.mocked(jwtVerify).mockRejectedValue(new Error('"exp" claim timestamp check failed'))
+
+    const user = await getCurrentUser()
+
+    expect(user).toBeNull()
+  })
+
+  it('retorna null con token malformado', async () => {
+    const cookieStore = { get: vi.fn().mockReturnValue({ value: 'no-soy-un-jwt' }) }
+    vi.mocked(cookies).mockResolvedValue(cookieStore as any)
+    vi.mocked(jwtVerify).mockRejectedValue(new Error('Invalid Compact JWS'))
 
     const user = await getCurrentUser()
 

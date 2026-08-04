@@ -1,0 +1,61 @@
+
+> @df/web@0.0.1 test:cov /home/andres/Proyectos/diego-ferreira-platform/apps/web
+> vitest run --coverage
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.7 [39m[90m/home/andres/Proyectos/diego-ferreira-platform/apps/web[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m src/middleware.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m src/lib/auth_server.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/app/pago/__tests__/PagoClient.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 248[2mms[22m[39m
+ [32m✓[39m src/app/avanza/__tests__/page.test.tsx [2m([22m[2m6 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 1792[2mms[22m[39m
+     [33m[2m✓[22m[39m renderiza LibroHero [33m 1013[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/BookSection.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1642[2mms[22m[39m
+     [33m[2m✓[22m[39m renderiza la tapa del libro [33m 441[2mms[22m[39m
+     [33m[2m✓[22m[39m renderiza el botón principal "Comprar el libro" apuntando a /avanza#comprar [33m 452[2mms[22m[39m
+     [33m[2m✓[22m[39m el botón toggle de capítulos cambia de texto al hacer click (Ver los N capítulos ↔ Ver menos) [33m 410[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/TopBar.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1968[2mms[22m[39m
+     [33m[2m✓[22m[39m renderiza todos los links de navegación [33m 562[2mms[22m[39m
+     [33m[2m✓[22m[39m al hacer click en hamburguesa abre el drawer (aparece contenido exclusivo del drawer) [33m 537[2mms[22m[39m
+     [33m[2m✓[22m[39m los links del drawer apuntan a los anchors correctos [33m 404[2mms[22m[39m
+ [32m✓[39m src/components/libro/__tests__/LibroCompra.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 3716[2mms[22m[39m
+     [33m[2m✓[22m[39m renderiza el formulario con campos de email y nombre [33m 463[2mms[22m[39m
+     [33m[2m✓[22m[39m con email vacío → el botón sigue habilitado, pero al hacer click muestra error y no llama a fetch [33m 878[2mms[22m[39m
+     [33m[2m✓[22m[39m con nombre vacío → el botón sigue habilitado, pero al hacer click muestra error y no llama a fetch [33m 550[2mms[22m[39m
+     [33m[2m✓[22m[39m con datos válidos → llama a POST /payments/libro/initiate con email y nombre [33m 466[2mms[22m[39m
+     [33m[2m✓[22m[39m durante loading muestra "Procesando…" y deshabilita el botón [33m 480[2mms[22m[39m
+     [33m[2m✓[22m[39m si la API responde sin processId → muestra mensaje de error [33m 413[2mms[22m[39m
+     [33m[2m✓[22m[39m si la API retorna processId → redirige al checkout de Bancard [33m 369[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[32m39 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (40)[39m
+[2m   Start at [22m 19:50:55
+[2m   Duration [22m 8.37s[2m (transform 1.05s, setup 1.13s, import 8.22s, tests 9.45s, environment 13.62s)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   87.16 |    78.33 |      80 |   87.59 |                   
+ src               |     100 |      100 |     100 |     100 |                   
+  middleware.ts    |     100 |      100 |     100 |     100 |                   
+ src/app/avanza    |     100 |      100 |     100 |     100 |                   
+  page.tsx         |     100 |      100 |     100 |     100 |                   
+ src/app/pago      |   82.14 |       75 |   71.42 |   78.26 |                   
+  PagoClient.tsx   |   82.14 |       75 |   71.42 |   78.26 | 31,36-38,67       
+ src/components    |     100 |      100 |     100 |     100 |                   
+  BookCover.tsx    |     100 |      100 |     100 |     100 |                   
+  BookSection.tsx  |     100 |      100 |     100 |     100 |                   
+ ...mponents/libro |   92.15 |    94.44 |    92.3 |   92.15 |                   
+  ...Capitulos.tsx |     100 |      100 |     100 |     100 |                   
+  LibroCompra.tsx  |   93.75 |    92.85 |     100 |   93.75 | 57-58             
+  ...scripcion.tsx |     100 |      100 |     100 |     100 |                   
+  LibroHero.tsx    |      60 |      100 |      50 |      60 | 9-10              
+  ...stimonios.tsx |     100 |      100 |     100 |     100 |                   
+ ...components/nav |   47.36 |    33.33 |   44.44 |   52.94 |                   
+  TopBar.tsx       |   47.36 |    33.33 |   44.44 |   52.94 | ...69,119-129,140 
+ src/lib           |     100 |      100 |     100 |     100 |                   
+  auth_server.ts   |     100 |      100 |     100 |     100 |                   
+  book.ts          |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------

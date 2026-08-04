@@ -53,26 +53,32 @@ describe('EmailService', () => {
     );
   });
 
-  it('sendApproval() llama resend con el to correcto', async () => {
+  it('sendApproval() llama resend con el to correcto y el link de pago en el html', async () => {
     await service.sendApproval({
       to: 'patient@test.com', name: 'Juan',
-      paymentUrl: 'http://pay.test', price: '100', currency: 'PYG',
+      paymentUrl: 'http://pay.test/xyz', price: '100', currency: 'PYG',
     });
 
     expect(mockResendSend).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'patient@test.com' }),
+      expect.objectContaining({
+        to: 'patient@test.com',
+        html: expect.stringContaining('http://pay.test/xyz'),
+      }),
     );
   });
 
-  it('sendReminder() con hoursUntil=1 → subject contiene "1 hora"', async () => {
+  it('sendReminder() con hoursUntil=1 → subject contiene "1 hora" y el html tiene el meetLink', async () => {
     await service.sendReminder({
       to: 'p@test.com', name: 'Juan',
-      sessionDate: '01/06/2026', roomUrl: 'https://meet.test',
+      sessionDate: '01/06/2026', roomUrl: 'https://meet.test/abc',
       hoursUntil: 1,
     });
 
     expect(mockResendSend).toHaveBeenCalledWith(
-      expect.objectContaining({ subject: expect.stringContaining('1 hora') }),
+      expect.objectContaining({
+        subject: expect.stringContaining('1 hora'),
+        html: expect.stringContaining('https://meet.test/abc'),
+      }),
     );
   });
 
@@ -88,12 +94,17 @@ describe('EmailService', () => {
     );
   });
 
-  it('sendWelcomeAfterPayment() llama resend', async () => {
+  it('sendWelcomeAfterPayment() llama resend con el to y el nombre del paciente en el html', async () => {
     await service.sendWelcomeAfterPayment({
-      to: 'p@test.com', name: 'Juan', calendarUrl: 'http://cal.test',
+      to: 'p@test.com', name: 'Juan Pérez', calendarUrl: 'http://cal.test',
     });
 
-    expect(mockResendSend).toHaveBeenCalled();
+    expect(mockResendSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'p@test.com',
+        html: expect.stringContaining('Juan Pérez'),
+      }),
+    );
   });
 
   it('sendBookPurchaseConfirmation() llama resend con el to correcto', async () => {
@@ -102,5 +113,21 @@ describe('EmailService', () => {
     expect(mockResendSend).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'lector@test.com' }),
     );
+  });
+
+  // BUG REAL (no corregido, solo documentado): ningún método de EmailService envuelve
+  // `this.resend.emails.send(...)` en try/catch. Si Resend falla o rechaza, el error se
+  // propaga sin controlar hacia quien haya llamado al método — y ninguno de los
+  // callers reales (PaymentsService.handleWebhook, PatientsService.admitPatient,
+  // RemindersService.sendReminders) lo captura tampoco. Una caída de Resend puede
+  // tumbar un webhook de pago o el cron de recordatorios completo.
+  it('si Resend falla → el error se propaga sin capturar (no hay try/catch)', async () => {
+    mockResendSend.mockRejectedValueOnce(new Error('Resend API unavailable'));
+
+    await expect(
+      service.sendSessionBooked({
+        patientName: 'Juan', patientEmail: 'juan@test.com', sessionDate: '01/06/2026',
+      }),
+    ).rejects.toThrow('Resend API unavailable');
   });
 });

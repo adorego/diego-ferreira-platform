@@ -16,4 +16,11 @@ export default defineConfig({
   datasource: {
     url: process.env.DATABASE_URL,
   },
+  // `prisma db seed` ya no lee la clave "prisma.seed" de package.json en esta
+  // versión — sin esto, el comando corre pero no ejecuta nada ("No seed command
+  // configured"). Se deja también la entrada equivalente en package.json por si
+  // algún tooling externo todavía la busca ahí.
+  migrations: {
+    seed: 'ts-node prisma/seed.ts',
+  },
 })

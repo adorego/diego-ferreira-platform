@@ -14,7 +14,10 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "db:seed:demo": "ts-node --project tsconfig.json prisma/seed.demo.ts",
     "db:reset": "prisma migrate reset",
+    "db:reset:dev": "prisma migrate reset --force && prisma db seed",
+    "db:reset:demo": "prisma migrate reset --force && ts-node --project tsconfig.json prisma/seed.demo.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node dist/src/main",
     "start:dev": "nest start --watch",
@@ -86,7 +89,7 @@
   },
   "prisma": {
     "config": "prisma.config.ts",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
   },
   "jest": {
     "moduleFileExtensions": [
