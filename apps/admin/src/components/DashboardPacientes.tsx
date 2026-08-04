@@ -2,20 +2,39 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppStatus } from '@df/types';
-import type { Session, Patient } from '@df/types';
+import type { Session } from '@df/types';
+import AdminLayout, { DashboardView } from './AdminLayout';
 import AdmitDialog from './AdmitDialog';
+import StatusChip from './StatusChip';
+import Toast, { ToastState } from './Toast';
 
+// SessionType (EXPLORATORY|PLAN) es el único campo real de "tipo de programa" que
+// existe en el schema — no hay un campo "plan" separado (tiers como "Estándar" o
+// "Premium" solo existen como comentarios sobre el monto en el seed, no como dato).
+// Las dos columnas pedidas (Tipo/Plan) muestran el mismo campo con distinto detalle.
 const TIPO_LABEL: Record<string, string> = {
   EXPLORATORY: 'Exploratoria',
-  PLAN: 'Plan',
+  PLAN:        'Coaching',
 };
+const PLAN_LABEL: Record<string, string> = {
+  EXPLORATORY: 'Sesión exploratoria',
+  PLAN:        'Programa de coaching',
+};
+
+function formatFecha(start?: string) {
+  if (!start) return '—';
+  return new Date(start).toLocaleString('es-PY', { dateStyle: 'medium', timeStyle: 'short' });
+}
 
 export default function DashboardPacientes() {
   const router = useRouter();
   const [sessions, setSessions]         = useState<Session[]>([]);
+  const [loaded, setLoaded]             = useState(false);
+  const [view, setView]                 = useState<DashboardView>('pending');
   const [admitOpen, setAdmitOpen]       = useState(false);
   const [admitSession, setAdmitSession] = useState<Session | null>(null);
   const [rejectingId, setRejectingId]   = useState<number | null>(null);
+  const [toast, setToast]               = useState<ToastState | null>(null);
 
   useEffect(() => {
     // Pasa por el proxy same-origin /api/patients/sessions — un fetch directo del
@@ -35,25 +54,24 @@ export default function DashboardPacientes() {
       })
       .then(data => {
         if (data) setSessions(data);
+        setLoaded(true);
       });
   }, [router]);
 
-  // Dashboard de aprobaciones: solo pendientes. El endpoint sigue devolviendo
-  // todas las sesiones (no se cambió el contrato del backend) — el filtro es acá.
-  const pendientes = sessions.filter(s => s.status === AppStatus.PENDING);
+  const pendingCount = sessions.filter(s => s.status === AppStatus.PENDING).length;
+  const visible = sessions.filter(s => {
+    if (view === 'pending')   return s.status === AppStatus.PENDING;
+    if (view === 'confirmed') return s.status === AppStatus.CONFIRMED;
+    return true;
+  });
 
-  // ✅ FIX #1: usa los datos reales del paciente, no hardcodeados
-  async function admitPatient(
-    patient: Patient,
-    amount: number, sessionsCount: number, currency: string,
-  ) {
+  async function admitPatient(sessionId: number, amount: number, sessionsCount: number, currency: string) {
     const res = await fetch('/api/patients/admitPatient', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        name:     patient.name,    // ← antes era hardcodeado
-        email:    patient.email,   // ← antes era hardcodeado
+        sessionId,
         price:    String(amount * sessionsCount),
         sessions: sessionsCount,
         currency,
@@ -63,20 +81,20 @@ export default function DashboardPacientes() {
     return res.json();
   }
 
-  // ✅ FIX #2: abre el dialog, no llama admitPatient directamente
   function handleOpenAdmit(session: Session) {
     setAdmitSession(session);
-    setAdmitOpen(true);         // ← antes llamaba admitPatient() aquí
+    setAdmitOpen(true);
   }
 
   async function handleConfirmAdmit(amount: number, sessionsCount: number, currency: string) {
     if (!admitSession) return;
-    await admitPatient(admitSession.patient, amount, sessionsCount, currency);
+    await admitPatient(admitSession.id, amount, sessionsCount, currency);
     setSessions(prev => prev.map(s =>
       s.id === admitSession.id ? { ...s, status: AppStatus.CONFIRMED } : s,
     ));
     setAdmitOpen(false);
     setAdmitSession(null);
+    setToast({ message: `Solicitud aprobada — se envió el link de pago a ${admitSession.patient.email}.`, variant: 'success' });
   }
 
   async function handleReject(session: Session) {
@@ -93,47 +111,108 @@ export default function DashboardPacientes() {
       setSessions(prev => prev.map(s =>
         s.id === session.id ? { ...s, status: AppStatus.CANCELLED } : s,
       ));
+      setToast({ message: `Solicitud de ${session.patient.name} rechazada.`, variant: 'success' });
     } catch {
-      alert('No se pudo rechazar la solicitud. Probá de nuevo.');
+      setToast({ message: 'No se pudo rechazar la solicitud. Probá de nuevo.', variant: 'error' });
     } finally {
       setRejectingId(null);
     }
   }
 
   return (
-    <div>
-      {pendientes.length === 0 && (
-        <p style={{ color: '#666', fontSize: '14px' }}>No hay solicitudes pendientes.</p>
-      )}
-      {pendientes.map(s => (
-        <div key={s.id} style={{
-          border:'0.5px solid var(--color-border-tertiary)',
-          borderRadius:'8px', padding:'1rem', marginBottom:'12px',
+    <AdminLayout activeView={view} onChangeView={setView} pendingCount={pendingCount}>
+      <h1 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 24px', color: 'var(--color-text)' }}>
+        {view === 'pending' ? 'Sesiones Pendientes' : view === 'confirmed' ? 'Sesiones Aprobadas' : 'Todas las sesiones'}
+      </h1>
+
+      {loaded && visible.length === 0 && (
+        <div style={{
+          textAlign: 'center', padding: '80px 20px', color: 'var(--color-text-muted)',
+          border: '1px dashed var(--color-border)', borderRadius: '12px',
         }}>
-          <p style={{ fontWeight:500 }}>{s.patient.name}</p>
-          <p style={{ fontSize:'13px', color:'#666' }}>{s.patient.email}</p>
-          <p style={{ fontSize:'13px', color:'#666' }}>
-            {TIPO_LABEL[s.type] ?? s.type}
-            {s.start && ` · ${new Date(s.start).toLocaleString('es-PY', { dateStyle: 'medium', timeStyle: 'short' })}`}
-            {s.price != null && ` · ${s.price}`}
-          </p>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-            <button onClick={() => handleOpenAdmit(s)}>
-              Admitir paciente
-            </button>
-            <button onClick={() => handleReject(s)} disabled={rejectingId === s.id}>
-              {rejectingId === s.id ? 'Rechazando…' : 'Rechazar'}
-            </button>
-          </div>
+          <div style={{ fontSize: '40px', marginBottom: '12px' }}>📭</div>
+          <p style={{ fontSize: '15px', margin: 0 }}>No hay sesiones para mostrar acá.</p>
         </div>
-      ))}
+      )}
+
+      {visible.length > 0 && (
+        <div style={{ border: '1px solid var(--color-border)', borderRadius: '12px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+            <thead>
+              <tr style={{ background: 'var(--color-bg-elevated)' }}>
+                {['Paciente', 'Email', 'País', 'Fecha/Hora', 'Tipo', 'Plan', 'Estado', 'Acciones'].map(h => (
+                  <th key={h} style={{
+                    textAlign: 'left', padding: '12px 16px', fontSize: '12px',
+                    color: 'var(--color-text-muted)', textTransform: 'uppercase',
+                    letterSpacing: '0.05em', fontWeight: 700,
+                    borderBottom: '1px solid var(--color-border)',
+                  }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map(s => (
+                <tr
+                  key={s.id}
+                  style={{ borderBottom: '1px solid var(--color-border)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '14px 16px', fontWeight: 600 }}>{s.patient.name}</td>
+                  <td style={{ padding: '14px 16px', color: 'var(--color-text-muted)' }}>{s.patient.email}</td>
+                  <td style={{ padding: '14px 16px', color: 'var(--color-text-muted)' }}>{s.patient.country || '—'}</td>
+                  <td style={{ padding: '14px 16px', color: 'var(--color-text-muted)' }}>{formatFecha(s.start)}</td>
+                  <td style={{ padding: '14px 16px' }}>{TIPO_LABEL[s.type] ?? s.type}</td>
+                  <td style={{ padding: '14px 16px' }}>{PLAN_LABEL[s.type] ?? s.type}</td>
+                  <td style={{ padding: '14px 16px' }}><StatusChip status={s.status} /></td>
+                  <td style={{ padding: '14px 16px' }}>
+                    {s.status === AppStatus.PENDING ? (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handleOpenAdmit(s)}
+                          style={{
+                            padding: '6px 12px', borderRadius: '6px', border: 'none',
+                            background: 'var(--color-accent)', color: 'var(--color-accent-fg)',
+                            fontSize: '13px', fontWeight: 700,
+                          }}
+                        >
+                          Admitir
+                        </button>
+                        <button
+                          onClick={() => handleReject(s)}
+                          disabled={rejectingId === s.id}
+                          style={{
+                            padding: '6px 12px', borderRadius: '6px',
+                            border: '1px solid var(--color-danger)', background: 'transparent',
+                            color: 'var(--color-danger)', fontSize: '13px', fontWeight: 600,
+                          }}
+                        >
+                          {rejectingId === s.id ? 'Rechazando…' : 'Rechazar'}
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {admitOpen && admitSession && (
         <AdmitDialog
           session={admitSession}
+          planLabel={PLAN_LABEL[admitSession.type] ?? admitSession.type}
           onConfirm={handleConfirmAdmit}
           onClose={() => { setAdmitOpen(false); setAdmitSession(null); }}
         />
       )}
-    </div>
+
+      {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}
+    </AdminLayout>
   );
 }

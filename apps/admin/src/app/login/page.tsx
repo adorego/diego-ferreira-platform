@@ -28,16 +28,39 @@ export default function LoginPage() {
     }
   }
 
+  const inputStyle: React.CSSProperties = {
+    padding: '11px 14px', borderRadius: '8px', border: '1px solid var(--color-border)',
+    background: 'var(--color-bg-elevated)', color: 'var(--color-text)', fontSize: '14px',
+  }
+
   return (
-    <main style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 320 }}>
-        <h1>Admin — Diego Ferreira</h1>
+    <main style={{
+      display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh',
+      background: 'var(--color-bg)',
+    }}>
+      <form onSubmit={handleSubmit} style={{
+        display: 'flex', flexDirection: 'column', gap: 14, width: 340,
+        background: 'var(--color-bg-elevated)', padding: '32px',
+        borderRadius: '14px', border: '1px solid var(--color-border)',
+      }}>
+        <div style={{ marginBottom: '8px' }}>
+          <p style={{ margin: 0, fontSize: '18px', fontWeight: 800, letterSpacing: '0.02em' }}>
+            DIEGO <span style={{ color: 'var(--color-accent)' }}>FERREIRA</span>
+          </p>
+          <p style={{
+            margin: '2px 0 0', fontSize: '11px', color: 'var(--color-text-muted)',
+            textTransform: 'uppercase', letterSpacing: '0.1em',
+          }}>
+            Panel Admin
+          </p>
+        </div>
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={e => setEmail(e.target.value)}
           required
+          style={inputStyle}
         />
         <input
           type="password"
@@ -45,9 +68,19 @@ export default function LoginPage() {
           value={password}
           onChange={e => setPassword(e.target.value)}
           required
+          style={inputStyle}
         />
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button type="submit">Ingresar</button>
+        {error && <p style={{ color: 'var(--color-danger)', fontSize: '13px', margin: 0 }}>{error}</p>}
+        <button
+          type="submit"
+          style={{
+            padding: '11px', borderRadius: '8px', border: 'none',
+            background: 'var(--color-accent)', color: 'var(--color-accent-fg)',
+            fontSize: '14px', fontWeight: 700, marginTop: '4px',
+          }}
+        >
+          Ingresar
+        </button>
       </form>
     </main>
   )

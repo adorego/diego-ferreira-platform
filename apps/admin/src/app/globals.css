@@ -1,0 +1,45 @@
+:root {
+  --color-bg:            #0f172a;
+  --color-bg-elevated:   #1e293b;
+  --color-bg-hover:      #263449;
+  --color-border:        #334155;
+  --color-border-tertiary: #334155;
+  --color-text:          #f1f5f9;
+  --color-text-muted:    #94a3b8;
+  --color-accent:        #EAB308;
+  --color-accent-fg:     #0f172a;
+  --color-success:       #22c55e;
+  --color-success-bg:    rgba(34, 197, 94, 0.12);
+  --color-danger:        #ef4444;
+  --color-danger-bg:     rgba(239, 68, 68, 0.12);
+  --color-warning:       #EAB308;
+  --color-warning-bg:    rgba(234, 179, 8, 0.14);
+  --color-info:          #38bdf8;
+  --color-info-bg:       rgba(56, 189, 248, 0.12);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
