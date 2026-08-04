@@ -22,7 +22,7 @@ export default function LoginPage() {
       body: JSON.stringify({ email, password }),
     })
     if (res.ok) {
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     } else {
       setError('Credenciales inválidas')
     }
