@@ -110,7 +110,7 @@ export class PaymentsService {
         amount:          amountStr,
         currency,
         iva_amount:      '0.00',
-        description:     'Libro: Despertá y avanzá, ¡Carajo!',
+        description:     'Libro Diego Ferreira',
         additional_data: '',
         return_url:      returnUrl,
         cancel_url:      cancelUrl,
