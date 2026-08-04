@@ -10,10 +10,13 @@ export default function PagoClient() {
   const [error,       setError]       = useState('')
   const [scriptReady, setScriptReady] = useState(false)
 
-  const isProduction = process.env.NODE_ENV === 'production'
-  const bancardBase  = isProduction
-    ? 'https://vpos.infonet.com.py'
-    : 'https://vpos.infonet.com.py:8888'
+  // NEXT_PUBLIC_* se inlinea en build time — usar NODE_ENV para distinguir
+  // staging/producción no sirve porque `next build` siempre corre en modo
+  // producción (Railway staging también hace `next build`), así que
+  // NODE_ENV === 'production' termina siendo true en todos los ambientes
+  // deployados. La variable de entorno (distinta por servicio en Railway)
+  // es la única forma correcta de diferenciarlos.
+  const bancardBase = process.env.NEXT_PUBLIC_BANCARD_BASE_URL ?? 'https://vpos.infonet.com.py'
 
   useEffect(() => {
     if (!token) { setError('Link inválido.'); return }

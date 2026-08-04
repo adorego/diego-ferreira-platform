@@ -18,10 +18,9 @@ export default function BookPurchase() {
   const [processId, setProcessId]     = React.useState<string | null>(null)
   const [scriptReady, setScriptReady] = React.useState(false)
 
-  const isProduction = process.env.NODE_ENV === 'production'
-  const bancardBase  = isProduction
-    ? 'https://vpos.infonet.com.py'
-    : 'https://vpos.infonet.com.py:8888'
+  // Ver PagoClient.tsx: NODE_ENV no sirve para distinguir staging/producción
+  // en un build deployado (next build siempre corre en modo producción).
+  const bancardBase = process.env.NEXT_PUBLIC_BANCARD_BASE_URL ?? 'https://vpos.infonet.com.py'
 
   async function handleComprar() {
     setError('')
