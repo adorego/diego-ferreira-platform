@@ -439,4 +439,39 @@ export class EmailService {
       html:    baseTemplate(content),
     });
   }
+
+  // ── Entrega del libro (post-pago) ──────────────────────────────────────────
+  // Reemplaza en la práctica a sendBookPurchaseConfirmation() de arriba — esa
+  // quedó como contenido genérico sin nunca llamarse desde ningún flujo real
+  // (su propio TODO decía "una vez definido el mecanismo de entrega del libro",
+  // que es exactamente lo que este método ya hace). No se borró por las dudas
+  // de que algo dependa de ella, pero es código muerto en este punto.
+
+  async sendBookDelivery(to: string, name: string): Promise<void> {
+    const webUrl = this.cfg.get<string>('WEB_URL') ?? this.cfg.get<string>('FRONTEND_URL') ?? '';
+    const bookUrl = `${webUrl}/libro-diego-ferreira.pdf`;
+
+    const content = `
+      <h2 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#111111;">
+        ¡Hola ${name}!
+      </h2>
+      <p style="margin:0 0 24px;font-size:15px;color:#444444;line-height:1.6;">
+        Tu compra fue confirmada. Aquí está tu libro:
+      </p>
+      ${btn('Descargar libro →', bookUrl)}
+      <p style="margin:20px 0 0;font-size:13px;color:#888888;text-align:center;word-break:break-all;">
+        También podés acceder desde: <a href="${bookUrl}" style="color:#00727A;">${bookUrl}</a>
+      </p>
+      <hr style="border:none;border-top:1px solid #eeeeee;margin:28px 0;" />
+      <p style="margin:0;font-size:15px;color:#444444;text-align:center;">
+        Gracias por confiar en Diego Ferreira
+      </p>`;
+
+    await this.send({
+      from:    this.from,
+      to,
+      subject: `¡Tu libro ya está aquí, ${name}! 📚`,
+      html:    baseTemplate(content),
+    });
+  }
 }

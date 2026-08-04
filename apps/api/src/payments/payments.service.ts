@@ -305,7 +305,7 @@ export class PaymentsService {
 
   private async handleBookPurchaseWebhook(
     op: any,
-    purchase: { shopProcessId: string; status: string },
+    purchase: { shopProcessId: string; status: string; email: string; nombre: string },
   ) {
     if (purchase.status === 'CONFIRMED') {
       this.logger.warn(
@@ -335,9 +335,7 @@ export class PaymentsService {
       `Compra de libro confirmada — shop_process_id: ${op.shop_process_id}`,
     );
 
-    // TODO(Diego): enviar email al comprador con el link de descarga
-    // (/payments/libro/download?token=...) una vez definido el template. Por ahora
-    // no se envía ninguna notificación automática.
+    await this.email.sendBookDelivery(purchase.email, purchase.nombre);
 
     return { status: 'success' };
   }
@@ -401,6 +399,8 @@ export class PaymentsService {
       data:  { downloadedAt: new Date() },
     });
 
-    return { downloadUrl: '/libro-completo.pdf' };
+    // '/libro-completo.pdf' no coincidía con ningún archivo real en apps/web/public
+    // (el PDF real se renombró a libro-diego-ferreira.pdf en este mismo cambio).
+    return { downloadUrl: '/libro-diego-ferreira.pdf' };
   }
 }

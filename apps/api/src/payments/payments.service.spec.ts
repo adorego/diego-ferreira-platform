@@ -19,6 +19,7 @@ describe('PaymentsService', () => {
     sendWelcomeAfterPayment:    jest.Mock;
     sendBookPurchaseConfirmation: jest.Mock;
     sendPostPaymentScheduling:  jest.Mock;
+    sendBookDelivery:           jest.Mock;
   };
   let fetchMock: jest.Mock;
 
@@ -57,6 +58,7 @@ describe('PaymentsService', () => {
       sendWelcomeAfterPayment: jest.fn().mockResolvedValue(undefined),
       sendBookPurchaseConfirmation: jest.fn().mockResolvedValue(undefined),
       sendPostPaymentScheduling: jest.fn().mockResolvedValue(undefined),
+      sendBookDelivery: jest.fn().mockResolvedValue(undefined),
     };
     fetchMock = jest.fn();
     global.fetch = fetchMock;
@@ -334,11 +336,13 @@ describe('PaymentsService', () => {
       expect(result).toEqual({ status: 'success' });
     });
 
-    it('compra de libro (BookPurchase) con response="S" → confirma y genera downloadToken', async () => {
+    it('compra de libro (BookPurchase) con response="S" → confirma, genera downloadToken y manda sendBookDelivery', async () => {
       prismaMock.payment.findUnique.mockResolvedValue(null);
       prismaMock.bookPurchase.findUnique.mockResolvedValue({
         shopProcessId: SHOP_PROCESS_ID,
         status: 'PENDING',
+        email: 'lector@test.com',
+        nombre: 'Juan Lector',
       });
 
       const result = await service.handleWebhook({
@@ -361,6 +365,7 @@ describe('PaymentsService', () => {
           }),
         }),
       );
+      expect(emailMock.sendBookDelivery).toHaveBeenCalledWith('lector@test.com', 'Juan Lector');
       expect(prismaMock.payment.update).not.toHaveBeenCalled();
       expect(prismaMock.user.update).not.toHaveBeenCalled();
       expect(result).toEqual({ status: 'success' });
@@ -444,7 +449,7 @@ describe('PaymentsService', () => {
           data: expect.objectContaining({ downloadedAt: expect.any(Date) }),
         }),
       );
-      expect(result).toEqual({ downloadUrl: '/libro-completo.pdf' });
+      expect(result).toEqual({ downloadUrl: '/libro-diego-ferreira.pdf' });
     });
   });
 });

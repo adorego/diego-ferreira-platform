@@ -147,6 +147,15 @@ describe('EmailService', () => {
     expect(sent.html).toContain('Juan Pérez');
   });
 
+  it('sendBookDelivery() manda subject/html con el nombre y el link al PDF real', async () => {
+    await service.sendBookDelivery('lector@test.com', 'Ana');
+
+    const sent = decodeSentMessage(mockGmailSend.mock.calls[0][0]);
+    expect(sent.to).toBe('lector@test.com');
+    expect(sent.subject).toBe('¡Tu libro ya está aquí, Ana! 📚');
+    expect(sent.html).toContain('http://frontend.test/libro-diego-ferreira.pdf');
+  });
+
   it('sendBookPurchaseConfirmation() manda al destinatario correcto', async () => {
     await service.sendBookPurchaseConfirmation({ to: 'lector@test.com' });
 
