@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { NotFoundException } from '@nestjs/common';
 import * as crypto from 'crypto';
+import * as jwt from 'jsonwebtoken';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
@@ -11,9 +12,14 @@ describe('PaymentsService', () => {
   let prismaMock: {
     payment:      { create: jest.Mock; update: jest.Mock; findUnique: jest.Mock };
     user:         { update: jest.Mock };
+    session:      { findFirst: jest.Mock; update: jest.Mock };
     bookPurchase: { create: jest.Mock; update: jest.Mock; findUnique: jest.Mock };
   };
-  let emailMock: { sendWelcomeAfterPayment: jest.Mock; sendBookPurchaseConfirmation: jest.Mock };
+  let emailMock: {
+    sendWelcomeAfterPayment:    jest.Mock;
+    sendBookPurchaseConfirmation: jest.Mock;
+    sendPostPaymentScheduling:  jest.Mock;
+  };
   let fetchMock: jest.Mock;
 
   const cfgValues: Record<string, string> = {
@@ -21,6 +27,7 @@ describe('PaymentsService', () => {
     BANCARD_PUBLIC_KEY:  'pub_key',
     BANCARD_BASE_URL:    'https://vpos.infonet.com.py',
     FRONTEND_URL:        'http://frontend.test',
+    JWT_SECRET:          'jwt_secret_test',
   };
 
   const SHOP_PROCESS_ID = 'DF-123';
@@ -40,11 +47,16 @@ describe('PaymentsService', () => {
     prismaMock = {
       payment:      { create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
       user:         { update: jest.fn() },
+      // findFirst → null por default: la mayoría de los tests de pago de sesión acá
+      // no tienen una Session vinculada (pagos viejos, o simplemente no es el foco
+      // del test), así que el webhook cae al email genérico de siempre.
+      session:      { findFirst: jest.fn().mockResolvedValue(null), update: jest.fn() },
       bookPurchase: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn().mockResolvedValue(null) },
     };
     emailMock = {
       sendWelcomeAfterPayment: jest.fn().mockResolvedValue(undefined),
       sendBookPurchaseConfirmation: jest.fn().mockResolvedValue(undefined),
+      sendPostPaymentScheduling: jest.fn().mockResolvedValue(undefined),
     };
     fetchMock = jest.fn();
     global.fetch = fetchMock;
@@ -266,6 +278,59 @@ describe('PaymentsService', () => {
       expect(emailMock.sendWelcomeAfterPayment).toHaveBeenCalledWith(
         expect.objectContaining({ to: 'p@test.com', name: 'Juan' }),
       );
+      expect(result).toEqual({ status: 'success' });
+    });
+
+    it('con response="S" y Session vinculada al Payment (Session.paymentId) → marca la sesión PAID, arma el JWT de agendamiento (30d) y manda el email de agendamiento en vez del genérico', async () => {
+      prismaMock.payment.findUnique.mockResolvedValue({
+        id: 'payment-1',
+        patientId: 1,
+        amount: 500,
+        currency: 'PYG',
+        status: 'PENDING',
+        patient: { email: 'p@test.com', name: 'Juan' },
+      });
+      prismaMock.session.findFirst.mockResolvedValue({
+        id: 42, type: 'PLAN', totalSessions: 5,
+      });
+
+      const result = await service.handleWebhook({
+        operation: {
+          shop_process_id: SHOP_PROCESS_ID,
+          amount: AMOUNT,
+          currency: CURRENCY,
+          response: 'S',
+          authorization_number: 'AUTH1',
+          token: validToken(),
+        },
+      });
+
+      expect(prismaMock.session.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { paymentId: 'payment-1' } }),
+      );
+      expect(prismaMock.session.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 42 },
+          data: expect.objectContaining({ status: 'PAID', schedulingToken: expect.any(String) }),
+        }),
+      );
+      expect(emailMock.sendPostPaymentScheduling).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'p@test.com', name: 'Juan',
+          totalSessions: 5, planLabel: 'Programa de coaching',
+          schedulingUrl: expect.stringContaining('/agendar-sesion?token='),
+        }),
+      );
+      expect(emailMock.sendWelcomeAfterPayment).not.toHaveBeenCalled();
+
+      // El JWT de agendamiento debe llevar todo lo que /scheduling/validate necesita.
+      const { schedulingUrl } = emailMock.sendPostPaymentScheduling.mock.calls[0][0];
+      const token = new URL(schedulingUrl).searchParams.get('token')!;
+      const payload = jwt.verify(token, 'jwt_secret_test') as any;
+      expect(payload).toEqual(expect.objectContaining({
+        sessionId: 42, userId: 1, email: 'p@test.com',
+        plan: 'PLAN', totalSessions: 5, type: 'PLAN',
+      }));
       expect(result).toEqual({ status: 'success' });
     });
 

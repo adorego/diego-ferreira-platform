@@ -132,7 +132,7 @@ describe('PatientsService', () => {
         expect.objectContaining({ where: { id: mockPatient.id }, data: { status: 'APPROVED' } }),
       );
       expect(prismaMock.session.update).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 10 }, data: { status: 'CONFIRMED' } }),
+        expect.objectContaining({ where: { id: 10 }, data: { status: 'CONFIRMED', totalSessions: 5 } }),
       );
       expect(emailMock.sendApproval).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -27,7 +27,7 @@ export class PaymentsController {
     }
     const amount   = payload.amount   ?? 1300
     const currency = payload.currency ?? 'USD'
-    return this.payments.createPaymentLink(payload.patientId, amount, currency)
+    return this.payments.createPaymentLink(payload.patientId, amount, currency, payload.sessionId)
   }
 
   @Post('libro/initiate')

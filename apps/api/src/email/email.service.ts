@@ -277,6 +277,49 @@ export class EmailService {
     });
   }
 
+  // ── Pago confirmado + link de agendamiento ─────────────────────────────────
+
+  async sendPostPaymentScheduling(data: {
+    to: string;
+    name: string;
+    planLabel: string;
+    totalSessions: number;
+    amount: string;
+    currency: string;
+    schedulingUrl: string;
+  }) {
+    const content = `
+      <h2 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#111111;">
+        ¡Pago confirmado! ✅
+      </h2>
+      <p style="margin:0 0 20px;font-size:15px;color:#444444;line-height:1.6;">
+        Hola <strong>${data.name}</strong>, tu pago fue confirmado. Ya podés agendar
+        tu${data.totalSessions > 1 ? 's sesiones' : ' sesión'} con Diego.
+      </p>
+      <div style="background:#f9f9f9;border-radius:10px;padding:20px 24px;margin-bottom:24px;">
+        <p style="margin:0 0 6px;font-size:14px;color:#444444;">
+          Programa: <strong>${data.planLabel}</strong>
+        </p>
+        <p style="margin:0 0 6px;font-size:14px;color:#444444;">
+          Sesiones contratadas: <strong>${data.totalSessions}</strong>
+        </p>
+        <p style="margin:0;font-size:16px;font-weight:700;color:#111111;">
+          Monto pagado: ${data.currency} ${data.amount}
+        </p>
+      </div>
+      ${btn('Agendar mi sesión →', data.schedulingUrl)}
+      <p style="margin:24px 0 0;font-size:12px;color:#bbbbbb;text-align:center;">
+        Este enlace es personal. Podés usarlo cuando quieras.
+      </p>`;
+
+    await this.transporter.sendMail({
+      from:    this.from,
+      to:      data.to,
+      subject: '¡Pago confirmado! Agendá tu sesión con Diego',
+      html:    baseTemplate(content),
+    });
+  }
+
   // ── Bienvenida post-pago ───────────────────────────────────────────────────
 
   async sendWelcomeAfterPayment(data: {

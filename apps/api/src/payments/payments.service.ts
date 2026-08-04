@@ -8,6 +8,14 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService }  from '../email/email.service';
 import * as crypto from 'crypto';
+import * as jwt from 'jsonwebtoken';
+
+// Duplicado del mismo mapa en PatientsService (privado ahí) — es una constante de
+// 2 líneas, no vale la pena extraer un módulo compartido solo por esto.
+const PLAN_LABEL: Record<string, string> = {
+  EXPLORATORY: 'Sesión exploratoria',
+  PLAN:        'Programa de coaching',
+};
 
 @Injectable()
 export class PaymentsService {
@@ -19,7 +27,7 @@ export class PaymentsService {
     private email:  EmailService,
   ) {}
 
-  async createPaymentLink(patientId: number, amount: number, currency: string) {
+  async createPaymentLink(patientId: number, amount: number, currency: string, sessionId?: number) {
     const shopProcessId = Date.now() % 999999999999999;
     const amountStr     = amount.toFixed(2);
 
@@ -54,7 +62,7 @@ export class PaymentsService {
     if (data.status !== 'success')
       throw new BadRequestException(data.messages?.[0]?.dsc ?? 'Error Bancard');
 
-    await this.prisma.payment.create({
+    const payment = await this.prisma.payment.create({
       data: {
         patientId,
         amount,
@@ -62,6 +70,18 @@ export class PaymentsService {
         bancardProcessId: shopProcessId.toString(),
       },
     });
+
+    // Vincula el Payment a la Session que lo originó — Session.paymentId ya existía
+    // en el schema pero ningún código lo llenaba. El webhook lo necesita para saber
+    // qué sesión marcar como PAID y armar el link de agendamiento. sessionId es
+    // opcional porque links de pago viejos (ya enviados antes de este cambio) no lo
+    // tienen en su JWT — en ese caso simplemente no hay agendamiento automático.
+    if (sessionId) {
+      await this.prisma.session.update({
+        where: { id: sessionId },
+        data:  { paymentId: payment.id },
+      });
+    }
 
     return {
       processId:     data.process_id,
@@ -237,11 +257,48 @@ export class PaymentsService {
       `Pago confirmado — patientId: ${payment.patientId} | auth: ${op.authorization_number}`,
     );
 
-    await this.email.sendWelcomeAfterPayment({
-      to:          payment.patient.email,
-      name:        payment.patient.name,
-      calendarUrl: `${this.cfg.get('FRONTEND_URL')}/registrados`,
+    // Solo pagos de coaching originados en admitPatient() tienen una Session
+    // vinculada (Session.paymentId, seteado en createPaymentLink) — links de pago
+    // viejos, generados antes de este cambio, no la tienen. En ese caso se mantiene
+    // el email genérico anterior en vez de no enviar nada.
+    const session = await this.prisma.session.findFirst({
+      where: { paymentId: payment.id },
     });
+
+    if (session) {
+      // JWT de agendamiento (30 días) — el paciente lo usa en /agendar-sesion para
+      // reservar cada una de las sesiones que compró, sin necesidad de login.
+      const schedulingToken = jwt.sign(
+        {
+          sessionId: session.id, userId: payment.patientId,
+          email: payment.patient.email, plan: session.type,
+          totalSessions: session.totalSessions, type: session.type,
+        },
+        this.cfg.get('JWT_SECRET')!,
+        { expiresIn: '30d' },
+      );
+
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data:  { status: 'PAID', schedulingToken },
+      });
+
+      await this.email.sendPostPaymentScheduling({
+        to:            payment.patient.email,
+        name:          payment.patient.name,
+        planLabel:     PLAN_LABEL[session.type] ?? session.type,
+        totalSessions: session.totalSessions,
+        amount:        payment.amount.toString(),
+        currency:      payment.currency,
+        schedulingUrl: `${this.cfg.get('WEB_URL') ?? this.cfg.get('FRONTEND_URL')}/agendar-sesion?token=${schedulingToken}`,
+      });
+    } else {
+      await this.email.sendWelcomeAfterPayment({
+        to:          payment.patient.email,
+        name:        payment.patient.name,
+        calendarUrl: `${this.cfg.get('FRONTEND_URL')}/registrados`,
+      });
+    }
 
     return { status: 'success' };
   }

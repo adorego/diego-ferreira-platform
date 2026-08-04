@@ -67,7 +67,10 @@ export class PatientsService {
     });
     await this.prisma.session.update({
       where: { id: session.id },
-      data:  { status: 'CONFIRMED' },
+      // totalSessions se persiste acá porque es el único momento en que dto.sessions
+      // (cuántas sesiones compró) existe — el webhook de pago, días después, necesita
+      // leerlo para armar el JWT de agendamiento y no tiene otra fuente para eso.
+      data:  { status: 'CONFIRMED', totalSessions: dto.sessions },
     });
 
     // JWT de un solo uso (48h) para el link de pago. Antes solo llevaba patientId —
@@ -75,8 +78,15 @@ export class PatientsService {
     // (payload.amount ?? 1300, payload.currency ?? 'USD'), así que sin esto el
     // paciente terminaba pagando el fallback hardcodeado en vez del monto real que
     // Diego cargó en el AdmitDialog, sin ninguna relación con lo que decía el email.
+    // sessionId es nuevo acá también — sin él, createPaymentLink() no tiene forma de
+    // vincular el Payment resultante a esta Session (Session.paymentId existía en el
+    // schema pero ningún código lo llenaba), y el webhook de pago no podría saber a
+    // qué sesión corresponde el pago para marcarla PAID ni armar el link de agendamiento.
     const token = jwt.sign(
-      { patientId: session.patient.id, amount: Number(dto.price), currency: dto.currency },
+      {
+        patientId: session.patient.id, sessionId: session.id,
+        amount: Number(dto.price), currency: dto.currency,
+      },
       this.cfg.get('JWT_SECRET')!,
       { expiresIn: '48h' },
     );
