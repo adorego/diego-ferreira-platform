@@ -1,4 +1,11 @@
-export default function AvanzaConfirmacionPage() {
+export default async function AvanzaConfirmacionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>
+}) {
+  const { status } = await searchParams
+  const failed = status !== undefined && status !== 'success'
+
   return (
     <div
       style={{
@@ -11,12 +18,14 @@ export default function AvanzaConfirmacionPage() {
       }}
     >
       <div style={{ maxWidth: '480px', textAlign: 'center' }}>
-        <div style={{ fontSize: '48px', marginBottom: '1rem' }}>📖</div>
+        <div style={{ fontSize: '48px', marginBottom: '1rem' }}>{failed ? '⚠️' : '📖'}</div>
         <h1 style={{ fontSize: '24px', color: '#ffffff', marginBottom: '1rem', fontWeight: 800 }}>
-          ¡Gracias por tu compra!
+          {failed ? 'No pudimos procesar tu compra' : '¡Gracias por tu compra!'}
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '16px', marginBottom: '2rem', lineHeight: 1.6 }}>
-          Recibirás el link de descarga en tu email en los próximos minutos.
+          {failed
+            ? 'Podés intentar de nuevo o escribirnos si el problema persiste.'
+            : 'Recibirás el link de descarga en tu email en los próximos minutos.'}
         </p>
         <a
           href="/"
