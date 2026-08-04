@@ -4,14 +4,16 @@ import { useRouter } from 'next/navigation';
 import type { Session, Patient } from '@df/types';
 
 export default function DashboardPacientes() {
-  const API = process.env.NEXT_PUBLIC_API_URL;  // no hardcodear localhost
   const router = useRouter();
   const [sessions, setSessions]   = useState<Session[]>([]);
   const [admitOpen, setAdmitOpen] = useState(false);
   const [admitSession, setAdmitSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    fetch(`${API}/patients/sessions`, { credentials: 'include' })
+    // Pasa por el proxy same-origin /api/patients/sessions — un fetch directo del
+    // browser a la API cross-origin nunca incluiría la cookie access_token (queda
+    // scopeada al dominio del admin, no al de la API). Ver route.ts del proxy.
+    fetch('/api/patients/sessions', { credentials: 'include' })
       .then(res => {
         if (res.status === 401) {
           router.push('/login');
@@ -26,14 +28,14 @@ export default function DashboardPacientes() {
       .then(data => {
         if (data) setSessions(data);
       });
-  }, [API, router]);
+  }, [router]);
 
   // ✅ FIX #1: usa los datos reales del paciente, no hardcodeados
   async function admitPatient(
     patient: Patient,
     amount: number, sessions: number, currency: string,
   ) {
-    const res = await fetch(`${API}/patients/admitPatient`, {
+    const res = await fetch('/api/patients/admitPatient', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
